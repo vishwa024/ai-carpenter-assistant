@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Customer Simulator • Heritage Woodworks</title>
+  <style>
+    :root {
+      --wa-header: #075e54;
+      --wa-teal: #128c7e;
+      --wa-green: #25d366;
+      --wa-bg: #efeae2;
+      --wa-bubble-out: #d9fdd3;
+      --wa-bubble-in: #ffffff;
+      --wa-text: #111b21;
+      --wa-subtext: #667781;
+      --panel-bg: #1e293b;
+      --panel-text: #f8fafc;
+      --card-bg: #0f172a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: #0b1329;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      font-size: 26px;
+      background: rgba(37, 211, 102, 0.15);
+      border: 1px solid #25d366;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      color: #f8fafc;
+      font-weight: 700;
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #475569;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: #334155;
+      border-color: #64748b;
+    }
+
+    .nav-btn.primary {
+      background: #25d366;
+      color: #064e3b;
+      border: none;
+    }
+
+    .nav-btn.primary:hover {
+      background: #22c55e;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 430px 1fr;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* WhatsApp Phone Frame */
+    .phone-container {
+      background: #111827;
+      border-radius: 36px;
+      padding: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 2px #374151;
+      display: flex;
+      flex-direction: column;
+      height: 740px;
+      max-width: 420px;
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+    }
+
+    .phone-notch {
+      width: 130px;
+      height: 18px;
+      background: #000;
+      border-radius: 0 0 14px 14px;
+      margin: 0 auto 6px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .phone-screen {
+      background: var(--wa-bg);
+      border-radius: 26px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      background-image: radial-gradient(#d6cfc2 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .wa-top-bar {
+      background: var(--wa-header);
+      color: white;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .wa-avatar {
+      width: 40px;
+      height: 40px;
+      background: #e2e8f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      border: 2px solid #25d366;
+    }
+
+    .wa-user-info {
+      flex: 1;
+    }
+
+    .wa-user-info h2 {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-verified {
+      background: #25d366;
+      color: #064e3b;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      font-weight: 800;
+    }
+
+    .wa-user-info p {
+      font-size: 11px;
+      color: #c7f9cc;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .date-divider {
+      align-self: center;
+      background: rgba(255, 255, 255, 0.85);
+      color: #54656f;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      margin: 4px 0;
+    }
+
+    .bubble {
+      max-width: 82%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      line-height: 1.45;
+      position: relative;
+      word-break: break-word;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.12);
+    }
+
+    .bubble.customer {
+      align-self: flex-end;
+      background: var(--wa-bubble-out);
+      color: var(--wa-text);
+      border-bottom-right-radius: 3px;
+    }
+
+    .bubble.carpenter {
+      align-self: flex-start;
+      background: var(--wa-bubble-in);
+      color: var(--wa-text);
+      border-bottom-left-radius: 3px;
+    }
+
+    .bubble-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      font-size: 10px;
+      color: var(--wa-subtext);
+      margin-top: 4px;
+    }
+
+    .ticks {
+      color: #53bdeb;
+      font-weight: bold;
+    }
+
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      background: white;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border-bottom-left-radius: 3px;
+      font-size: 12px;
+      color: #54656f;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: #94a3b8;
+      border-radius: 50%;
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* WhatsApp input area */
+    .wa-input-bar {
+      background: #f0f2f5;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .wa-input-bar input {
+      flex: 1;
+      background: white;
+      border: 1px solid #cbd5e1;
+      padding: 10px 14px;
+      border-radius: 20px;
+      font-size: 13.5px;
+      outline: none;
+    }
+
+    .wa-input-bar input:focus {
+      border-color: #25d366;
+    }
+
+    .btn-send {
+      width: 40px;
+      height: 40px;
+      background: var(--wa-teal);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s;
+    }
+
+    .btn-send:hover {
+      background: #075e54;
+    }
+
+    /* Right side tooling panel */
+    .tools-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .persona-select {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .persona-pill {
+      background: #0f172a;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #cbd5e1;
+      transition: all 0.15s;
+    }
+
+    .persona-pill.active {
+      background: #25d366;
+      color: #064e3b;
+      font-weight: 700;
+      border-color: #25d366;
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    @media (max-width: 600px) {
+      .scenario-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .scenario-btn {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .scenario-btn:hover {
+      background: #1e293b;
+      border-color: #25d366;
+      transform: translateY(-1px);
+    }
+
+    .scenario-btn strong {
+      color: #38bdf8;
+      font-size: 12px;
+    }
+
+    .meta-tools-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .tool-btn {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .tool-btn:hover {
+      background: #475569;
+    }
+
+    .payload-viewer {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11.5px;
+      color: #38bdf8;
+      max-height: 220px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .status-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .status-tag.ok {
+      background: rgba(37, 211, 102, 0.2);
+      color: #4ade80;
+      border: 1px solid #22c55e;
+    }
+
+    .status-tag.warn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid #f59e0b;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🪵</div>
+      <div>
+        <h1>Heritage Woodworks • Customer WhatsApp Simulator</h1>
+        <p>Direct Master Carpenter AI Agent Interactive Testing Harness</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="service-status" class="status-tag ok">Connecting...</span>
+      <button class="nav-btn" onclick="testMetaHandshake()">🤝 Test Webhook Handshake</button>
+      <button class="nav-btn" onclick="testDeduplication()">🔁 Test Deduplication</button>
+      <a href="/carpenter" class="nav-btn primary">🪚 Open Workshop Dashboard →</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: WhatsApp Smartphone Simulator -->
+    <div class="phone-container">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="wa-top-bar">
+          <div class="wa-avatar">🪚</div>
+          <div class="wa-user-info">
+            <h2>Rajesh Sharma <span class="badge-verified">✓ Master</span></h2>
+            <p>Heritage Woodworks • Online</p>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="date-divider">TODAY</div>
+          <div class="bubble carpenter">
+            Namaste! 🙏 I am *Rajesh Sharma*, Master Carpenter at *Heritage Woodworks*.
+            <br><br>
+            We handcraft bespoke wardrobes, modular kitchens, wooden doors, and solid Teak & Sheesham dining tables.
+            <br><br>
+            What project are you planning for your home? 🪵✨
+            <div class="bubble-meta">
+              <span>Just now</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+          <span>Rajesh Ji is typing</span>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+
+        <div class="wa-input-bar">
+          <input type="text" id="user-input" placeholder="Type a WhatsApp message..." onkeydown="if(event.key==='Enter') sendMessage()">
+          <button class="btn-send" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Simulation Controls & Webhook Inspector -->
+    <div class="tools-panel">
+      <!-- Customer Profiles -->
+      <div class="card">
+        <div class="card-title">
+          <span>👤 Active Customer Persona</span>
+          <span style="font-size: 11px; color: #94a3b8;" id="customer-phone-display">+91 98765 43210</span>
+        </div>
+        <div class="persona-select">
+          <button class="persona-pill active" onclick="switchCustomer('9876543210', 'Priya Sharma (Kitchen)')">Priya (Modular Kitchen)</button>
+          <button class="persona-pill" onclick="switchCustomer('9811122233', 'Vikram Malhotra (Dining)')">Vikram (Teak Dining)</button>
+          <button class="persona-pill" onclick="switchCustomer('9844455566', 'Amit Verma (Wardrobe)')">Amit (Fitted Wardrobe)</button>
+          <button class="persona-pill" onclick="switchCustomer('9988776655', 'Sunita Rao (Door & Mandir)')">Sunita (Door & Mandir)</button>
+        </div>
+      </div>
+
+      <!-- Quick Scenario Starters -->
+      <div class="card">
+        <div class="card-title">
+          <span>⚡ One-Click Carpentry Inquiries</span>
+          <span style="font-size: 11px; color: #38bdf8;">Click to simulate customer query</span>
+        </div>
+        <div class="scenario-grid">
+          <button class="scenario-btn" onclick="sendQuick('Namaste! We are renovating our kitchen and need an L-shaped modular setup (10x8 ft) in BWP Marine Ply with Acrylic finish.')">
+            <strong>🍳 Modular Kitchen Inquiry</strong>
+            <span>10x8 ft, Marine Ply, Acrylic</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('Looking for an 8-seater handcrafted dining table in genuine CP Teak (Sagwan) wood with matching chairs.')">
+            <strong>🪵 Solid Teak Dining Table</strong>
+            <span>8-seater, Burma/CP Teak wood</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('We need a floor-to-ceiling wardrobe for master bedroom, roughly 12 ft wide by 9 ft height, sliding doors with PU polish.')">
+            <strong>🛏️ Master Bedroom Wardrobe</strong>
+            <span>12x9 ft, sliding doors, PU polish</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('Can your team visit our apartment this Saturday morning around 11:30 AM for laser measurements?')">
+            <strong>📐 Schedule Site Visit</strong>
+            <span>Laser measurement booking</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Webhook Payload Inspector -->
+      <div class="card">
+        <div class="card-title">
+          <span>🔍 Webhook Payload Inspector</span>
+          <div class="meta-tools-row" style="margin: 0;">
+            <label style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="send-as-meta-webhook" checked>
+              Route via Meta Webhook (POST /webhook/whatsapp)
+            </label>
+          </div>
+        </div>
+        <div class="payload-viewer" id="payload-viewer">// Outbound & Inbound Meta Webhook payloads will be captured here in real-time...</div>
+        <div class="meta-tools-row">
+          <button class="tool-btn" onclick="clearConversation()">🧹 Clear Chat & Reset Session</button>
+          <button class="tool-btn" onclick="copyPayload()">📋 Copy Last Payload</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentCustomer = {
+      phone: '9876543210',
+      name: 'Priya Sharma'
+    };
+    let lastPayload = {};
+
+    function switchCustomer(phone, name) {
+      currentCustomer.phone = phone;
+      currentCustomer.name = name;
+      document.getElementById('customer-phone-display').textContent = `+91 ${phone}`;
+      
+      document.querySelectorAll('.persona-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.includes(name.split(' ')[0]));
+      });
+
+      // Load session messages from API
+      loadCustomerSession();
+    }
+
+    function formatWhatsApp(text) {
+      if (!text) return "";
+      let formatted = text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\*(.*?)\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+      return formatted;
+    }
+
+    function appendMessage(text, sender, metaInfo = "") {
+      const container = document.getElementById('chat-messages');
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${sender}`;
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const ticks = sender === 'customer' ? '<span class="ticks">✓✓</span>' : '';
+
+      bubble.innerHTML = `
+        ${formatWhatsApp(text)}
+        <div class="bubble-meta">
+          <span>${timeStr} ${metaInfo ? `• ${metaInfo}` : ''}</span>
+          ${ticks}
+        </div>
+      `;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      appendMessage(text, 'customer');
+
+      const typingIndicator = document.getElementById('typing-indicator');
+      typingIndicator.style.display = 'flex';
+
+      const useMetaWebhook = document.getElementById('send-as-meta-webhook').checked;
+      const messageId = "wamid.HBgM" + Date.now();
+
+      if (useMetaWebhook) {
+        // Construct standard Meta WhatsApp Cloud API incoming webhook payload
+        const metaPayload = {
+          object: "whatsapp_business_account",
+          entry: [{
+            id: "WHATSAPP_BUSINESS_ACCOUNT_ID",
+            changes: [{
+              value: {
+                messaging_product: "whatsapp",
+                metadata: {
+                  display_phone_number: "15550234567",
+                  phone_number_id: "WHATSAPP_PHONE_NUMBER_ID"
+                },
+                contacts: [{
+                  profile: { name: currentCustomer.name },
+                  wa_id: currentCustomer.phone
+                }],
+                messages: [{
+                  from: currentCustomer.phone,
+                  id: messageId,
+                  timestamp: Math.floor(Date.now() / 1000).toString(),
+                  text: { body: text },
+                  type: "text"
+                }]
+              },
+              field: "messages"
+            }]
+          }]
+        };
+
+        lastPayload = metaPayload;
+        document.getElementById('payload-viewer').textContent = JSON.stringify(metaPayload, null, 2);
+
+        try {
+          const resp = await fetch('/webhook/whatsapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(metaPayload)
+          });
+          const resJson = await resp.json();
+
+          // Poll for reply in background
+          setTimeout(pollLatestReply, 900);
+        } catch (err) {
+          typingIndicator.style.display = 'none';
+          appendMessage("⚠️ Error dispatching webhook: " + err.message, 'carpenter');
+        }
+      } else {
+        // Direct synchronous simulate endpoint
+        const simPayload = {
+          from: currentCustomer.phone,
+          text: text,
+          name: currentCustomer.name,
+          id: messageId
+        };
+        lastPayload = simPayload;
+        document.getElementById('payload-viewer').textContent = JSON.stringify(simPayload, null, 2);
+
+        try {
+          const resp = await fetch('/api/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(simPayload)
+          });
+          const resJson = await resp.json();
+          typingIndicator.style.display = 'none';
+
+          if (resJson.ok && resJson.reply) {
+            appendMessage(resJson.reply, 'carpenter', `${resJson.latency_ms}ms`);
+          } else {
+            appendMessage("Unable to generate response", 'carpenter');
+          }
+        } catch (err) {
+          typingIndicator.style.display = 'none';
+          appendMessage("⚠️ Connection error: " + err.message, 'carpenter');
+        }
+      }
+    }
+
+    async function pollLatestReply() {
+      try {
+        const resp = await fetch(`/api/conversations/${currentCustomer.phone}`);
+        const data = await resp.json();
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        if (data.ok && data.conversation) {
+          const history = data.conversation.history;
+          if (history.length > 0) {
+            const lastTurn = history[history.length - 1];
+            if (lastTurn.role === 'model') {
+              typingIndicator.style.display = 'none';
+              appendMessage(lastTurn.text, 'carpenter', lastTurn.source || 'agent');
+              return;
+            }
+          }
+        }
+        // retry once more if still generating
+        setTimeout(pollLatestReply, 800);
+      } catch (e) {
+        document.getElementById('typing-indicator').style.display = 'none';
+      }
+    }
+
+    function sendQuick(text) {
+      document.getElementById('user-input').value = text;
+      sendMessage();
+    }
+
+    async function loadCustomerSession() {
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = '<div class="date-divider">TODAY</div>';
+      try {
+        const resp = await fetch(`/api/conversations/${currentCustomer.phone}`);
+        const data = await resp.json();
+        if (data.ok && data.conversation && data.conversation.history.length > 0) {
+          data.conversation.history.forEach(item => {
+            appendMessage(item.text, item.role === 'user' ? 'customer' : 'carpenter', item.source || '');
+          });
+        } else {
+          appendMessage(
+            "Namaste! 🙏 I am *Rajesh Sharma*, Master Carpenter at *Heritage Woodworks*.\n\nWhat piece are you planning to build for your home? 🪵✨",
+            'carpenter'
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load session", e);
+      }
+    }
+
+    async function testMetaHandshake() {
+      const testChallenge = "CHALLENGE_" + Math.floor(Math.random() * 90000 + 10000);
+      try {
+        const resp = await fetch(`/webhook/whatsapp?hub.mode=subscribe&hub.challenge=${testChallenge}&hub.verify_token=carpenter_secret_verify_2026`);
+        const challengeReturned = await resp.text();
+        if (resp.status === 200 && challengeReturned === testChallenge) {
+          alert(`✅ Meta Webhook Handshake Successful!\nChallenge Verified: ${challengeReturned}`);
+        } else {
+          alert(`❌ Handshake Failed: Status ${resp.status}\nOutput: ${challengeReturned}`);
+        }
+      } catch (err) {
+        alert(`❌ Handshake request error: ${err.message}`);
+      }
+    }
+
+    async function testDeduplication() {
+      const dupId = "dup_test_" + Date.now();
+      const payload = {
+        from: currentCustomer.phone,
+        text: "Testing deduplication 1",
+        name: currentCustomer.name,
+        id: dupId
+      };
+
+      // Send 1st
+      await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      // Send 2nd identical ID
+      const resp2 = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data2 = await resp2.json();
+      if (data2.duplicate) {
+        alert("✅ Deduplication works! Second message with ID '" + dupId + "' was intercepted and prevented double reply.");
+      } else {
+        alert("Response: " + JSON.stringify(data2));
+      }
+    }
+
+    async function clearConversation() {
+      if (confirm("Reset all conversations and logs?")) {
+        await fetch('/api/reset', { method: 'POST' });
+        loadCustomerSession();
+      }
+    }
+
+    function copyPayload() {
+      navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2));
+      alert("Payload copied to clipboard!");
+    }
+
+    // Health check on load
+    async function checkHealth() {
+      try {
+        const resp = await fetch('/health');
+        const data = await resp.json();
+        const el = document.getElementById('service-status');
+        el.textContent = `🟢 Online • ${data.model}`;
+      } catch (e) {
+        const el = document.getElementById('service-status');
+        el.textContent = `🔴 Offline`;
+        el.className = 'status-tag warn';
+      }
+    }
+
+    checkHealth();
+  </script>
+</body>
+</html>

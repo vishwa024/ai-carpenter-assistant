@@ -1,0 +1,6 @@
+# Official Google GenAI SDK for Gemini API
+google-genai>=2.0.0
+
+# Optional utilities (Standard Library is fully used for zero-dependency execution)
+requests>=2.31.0
+python-dotenv>=1.0.0
