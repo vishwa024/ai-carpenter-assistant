@@ -12,11 +12,72 @@ import re
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.config import config
+from app.tools import (
+    calculate_material_needs,
+    check_inventory_stock,
+    get_joinery_specs,
+)
 
 logger = logging.getLogger("carpenter.agent")
+
+# Function Calling Tool Schema definitions (OpenAI / Gemini compatible)
+TOOLS_SCHEMA = [
+    {
+        "name": "calculate_material_needs",
+        "description": "Calculates board feet, square footage, 15% workshop cutting waste allowance, and estimated lumber/material costs in INR for given dimensions and wood type.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "dimensions": {
+                    "type": "string",
+                    "description": "Dimensions of the piece, e.g. '6x3 ft', '72x36x1.5 inches', '8x4 ft', or '6x3'.",
+                },
+                "wood_type": {
+                    "type": "string",
+                    "description": "Type of timber or plywood, e.g. 'teak', 'sheesham', 'oak', 'pine', 'marine ply', 'commercial ply'.",
+                },
+            },
+            "required": ["dimensions", "wood_type"],
+        },
+    },
+    {
+        "name": "check_inventory_stock",
+        "description": "Checks simulated workshop timber yard inventory, quantity available, rack/bay location, and lead time for materials and hardware.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "item_name": {
+                    "type": "string",
+                    "description": "Item to verify, e.g. 'teak', 'sheesham', 'marine ply', 'hinges', 'drawer slides', 'fevicol', 'pu polish', 'screws', 'dowels'.",
+                },
+            },
+            "required": ["item_name"],
+        },
+    },
+    {
+        "name": "get_joinery_specs",
+        "description": "Returns hardware fasteners, screw gauges, adhesive specifications, clamping pressures, and glue-curing guidelines for woodworking joints.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "joint_type": {
+                    "type": "string",
+                    "description": "Joint type, e.g. 'mortise and tenon', 'pocket hole', 'dovetail', 'dowel', 'mitre with spline', 'lap joint'.",
+                },
+            },
+            "required": ["joint_type"],
+        },
+    },
+]
+
+AVAILABLE_TOOLS: Dict[str, Callable[..., Any]] = {
+    "calculate_material_needs": calculate_material_needs,
+    "check_inventory_stock": check_inventory_stock,
+    "get_joinery_specs": get_joinery_specs,
+}
 
 # Master Carpenter System Prompt
 MASTER_CARPENTER_SYSTEM_PROMPT = """You are Rajesh Sharma, a warm, polite, and deeply experienced Master Carpenter ("Ustad Ji") running 'Heritage Woodworks & Joinery' - a premier custom furniture and architectural woodwork studio.
@@ -1158,6 +1219,289 @@ class CarpenterAgent:
         )
         return result
 
+    # -------------------------------------------------------------------------
+    # Autonomous Tool Execution Loop (for Streamlit WhatsApp Assistant)
+    # -------------------------------------------------------------------------
+    def run_agent_loop(
+        self,
+        user_message: str,
+        chat_history: Optional[List[Dict[str, Any]]] = None,
+        custom_api_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Execute autonomous multi-step tool calling loop until final answer is produced.
 
-# Global singleton agent
+        Args:
+            user_message: Customer task or inquiry.
+            chat_history: Previous conversation messages list.
+            custom_api_key: Optional Gemini API Key override from Streamlit UI.
+
+        Returns:
+            Dict containing 'final_response', 'trace' (list of step dicts), and 'source'.
+        """
+        active_key = custom_api_key or config.GEMINI_API_KEY
+        is_gemini_active = bool(
+            active_key
+            and isinstance(active_key, str)
+            and active_key.strip()
+            and active_key != "your_gemini_api_key"
+        )
+
+        trace: List[Dict[str, Any]] = []
+
+        if is_gemini_active:
+            try:
+                from google import genai
+                from google.genai import types
+
+                client = genai.Client(api_key=active_key)
+                contents: List[Any] = []
+                for msg in (chat_history or [])[-6:]:
+                    role = "user" if msg.get("role") == "user" else "model"
+                    contents.append(
+                        types.Content(
+                            role=role,
+                            parts=[types.Part.from_text(text=msg.get("content", ""))],
+                        )
+                    )
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=user_message)],
+                    )
+                )
+
+                tools_list = [
+                    types.Tool(
+                        function_declarations=[
+                            types.FunctionDeclaration(
+                                name=t["name"],
+                                description=t["description"],
+                                parameters=t["parameters"],
+                            )
+                            for t in TOOLS_SCHEMA
+                        ]
+                    )
+                ]
+
+                gen_config = types.GenerateContentConfig(
+                    system_instruction=MASTER_CARPENTER_SYSTEM_PROMPT,
+                    tools=tools_list,
+                    temperature=0.3,
+                )
+
+                step_num = 1
+                while step_num <= 5:
+                    response = client.models.generate_content(
+                        model=config.GEMINI_MODEL,
+                        contents=contents,
+                        config=gen_config,
+                    )
+
+                    function_calls = response.function_calls
+                    if not function_calls:
+                        return {
+                            "final_response": response.text or "Woodworking quotation prepared.",
+                            "trace": trace,
+                            "source": "gemini_function_calling",
+                        }
+
+                    func_responses = []
+                    for call in function_calls:
+                        t_name = call.name
+                        t_args = dict(call.args) if call.args else {}
+                        func = AVAILABLE_TOOLS.get(t_name)
+                        obs = func(**t_args) if func else {"error": f"Tool '{t_name}' not found"}
+
+                        trace.append({
+                            "step": len(trace) + 1,
+                            "thought": f"Autonomous reasoning: calling '{t_name}' with {json.dumps(t_args)}",
+                            "tool_name": t_name,
+                            "tool_args": t_args,
+                            "observation": obs,
+                        })
+
+                        func_responses.append(
+                            types.Part.from_function_response(
+                                name=t_name,
+                                response={"result": obs},
+                            )
+                        )
+
+                    if response.candidates and response.candidates[0].content:
+                        contents.append(response.candidates[0].content)
+
+                    contents.append(
+                        types.Content(
+                            role="user",
+                            parts=func_responses,
+                        )
+                    )
+                    step_num += 1
+
+                return {
+                    "final_response": "Multi-step woodworking analysis completed.",
+                    "trace": trace,
+                    "source": "gemini_function_calling",
+                }
+
+            except Exception as e:
+                logger.warning(f"Gemini API tool execution failed ({e}); falling back to local autonomous engine.")
+
+        # Local Autonomous ReAct Planning & Execution Engine
+        return self._run_local_tool_loop(user_message, trace)
+
+    def _run_local_tool_loop(self, user_message: str, trace: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Execute autonomous local planning and tool execution loop."""
+        text_lower = user_message.lower()
+        lang = detect_language(user_message)
+
+        # Plan autonomous tool execution steps
+        planned_steps: List[Tuple[str, Dict[str, Any], str]] = []
+
+        # 1. Dimensions and Material Calculation
+        dim_match = re.search(
+            r"(\d+(?:\.\d+)?\s*(?:ft|feet|in|inch|'|\")?\s*(?:x|by|\*)\s*\d+(?:\.\d+)?(?:\s*(?:x|by|\*)\s*\d+(?:\.\d+)?)?\s*(?:ft|feet|in|inch|'|\")?)",
+            text_lower,
+        )
+        dimensions = dim_match.group(1) if dim_match else None
+        if not dimensions:
+            if "6 seater" in text_lower or "6-seater" in text_lower:
+                dimensions = "6x3 ft"
+            elif "4 seater" in text_lower or "4-seater" in text_lower:
+                dimensions = "4x3 ft"
+            elif "8 seater" in text_lower or "8-seater" in text_lower:
+                dimensions = "8x4 ft"
+            elif "wardrobe" in text_lower:
+                dimensions = "7x4 ft"
+            elif any(w in text_lower for w in ["table", "dining", "desk", "wood", "cost", "price", "bhav"]):
+                dimensions = "6x3 ft"
+
+        wood_type = "teak"
+        for w in ["sheesham", "rosewood", "shisham", "oak", "white oak", "pine", "pinewood", "walnut", "marine ply", "plywood", "commercial ply", "sagwan", "teak"]:
+            if w in text_lower:
+                wood_type = "teak" if w == "sagwan" else ("sheesham" if w in ["rosewood", "shisham"] else w)
+                break
+
+        if dimensions:
+            planned_steps.append((
+                "calculate_material_needs",
+                {"dimensions": dimensions, "wood_type": wood_type},
+                f"Customer inquiry mentions dimensions '{dimensions}' and timber type '{wood_type}'. I must call calculate_material_needs to calculate net board feet, 15% cutting allowance, and estimated lumber costs before verifying workshop inventory.",
+            ))
+
+        # 2. Inventory Stock Verification
+        item_to_check = None
+        for it in ["teak", "sheesham", "oak", "pine", "walnut", "marine ply", "plywood", "hinges", "drawer slides", "fevicol", "pu polish", "screws", "dowels"]:
+            if it in text_lower:
+                item_to_check = it
+                break
+
+        if not item_to_check and (dimensions or any(w in text_lower for w in ["stock", "available", "inventory", "godown", "table", "bed", "sofa", "wardrobe"])):
+            item_to_check = wood_type
+
+        if item_to_check:
+            planned_steps.append((
+                "check_inventory_stock",
+                {"item_name": item_to_check},
+                f"I need to verify workshop timber yard availability for '{item_to_check}' to check rack location, seasoned board feet in stock, and procurement lead time.",
+            ))
+
+        # 3. Joinery Specifications
+        joint_type = None
+        for j in ["mortise and tenon", "tenon", "pocket hole", "pocket screw", "dovetail", "dowel", "mitre with spline", "mitre", "lap joint"]:
+            if j in text_lower:
+                joint_type = "mortise and tenon" if j == "tenon" else j
+                break
+
+        if not joint_type:
+            if "dining" in text_lower or "table" in text_lower or "chair" in text_lower:
+                joint_type = "mortise and tenon"
+            elif "cabinet" in text_lower or "wardrobe" in text_lower or "carcass" in text_lower:
+                joint_type = "pocket hole"
+            elif "drawer" in text_lower or "box" in text_lower:
+                joint_type = "dovetail"
+
+        if joint_type:
+            planned_steps.append((
+                "get_joinery_specs",
+                {"joint_type": joint_type},
+                f"The inquiry involves structural joinery for '{joint_type}'. I will call get_joinery_specs to retrieve hardware fastener gauges, adhesive standards (D3 PVA), clamping pressures, and glue curing guidelines.",
+            ))
+
+        # Execute autonomous loop
+        calc_obs: Optional[Dict[str, Any]] = None
+        stock_obs: Optional[Dict[str, Any]] = None
+        joinery_obs: Optional[str] = None
+
+        step_counter = 1
+        for tool_name, tool_args, thought in planned_steps:
+            func = AVAILABLE_TOOLS[tool_name]
+            obs = func(**tool_args)
+
+            trace.append({
+                "step": step_counter,
+                "thought": thought,
+                "tool_name": tool_name,
+                "tool_args": tool_args,
+                "observation": obs,
+            })
+
+            if tool_name == "calculate_material_needs":
+                calc_obs = obs
+            elif tool_name == "check_inventory_stock":
+                stock_obs = obs
+            elif tool_name == "get_joinery_specs":
+                joinery_obs = obs
+
+            step_counter += 1
+
+        # Synthesize final response
+        if lang == "gu":
+            greeting = "નમસ્તે! હેરિટેજ વુડવર્ક્સ (Heritage Woodworks) તરફથી હું રાજેશ શર્મા (Rajesh Sharma)."
+            closing = "\nઅમારી ટીમ લેસર મેઝરમેન્ટ ટેપ અને લાકડાના ઓરિજિનલ સેમ્પલ સાથે તમારી સાઇટ વિઝિટ કરી શકે છે. શું હું આ શનિવારે સવારે 11:30 અથવા રવિવારે સાંજે 4:00 વાગ્યે મેઝરમેન્ટ વિઝિટ બુક કરું? 🪵📐"
+        elif lang == "hi":
+            greeting = "नमस्ते! हेरिटेज वुडवर्क्स (Heritage Woodworks) से मैं राजेश शर्मा (Ustad Ji)."
+            closing = "\nहमारी वर्कशॉप टीम लेजर मेजरिंग टेप और वुड सैंपल्स के साथ आपके घर आकर ऑन-साइट मेजरमेंट ले सकती है। क्या हम इस शनिवार सुबह 11:30 बजे या रविवार शाम 4:00 बजे विजिट कन्फर्म करें? 🪵📐"
+        else:
+            greeting = "Namaste! I am Rajesh Sharma, Master Craftsman at **Heritage Woodworks & Joinery**."
+            closing = "\nWould you like to schedule a free 15-minute on-site laser measurement visit this **Saturday at 11:30 AM** or **Sunday at 4:00 PM**? Our team brings seasoned timber blocks and finish samples directly to your doorstep! 📐🪵"
+
+        sections = [greeting]
+
+        if calc_obs and calc_obs.get("status") == "success":
+            sections.append(
+                f"\n📊 **MATERIAL & TIMBER SPECIFICATIONS ({calc_obs['wood_type']})**\n"
+                f"• **Dimensions**: {calc_obs['normalized_dimensions']} ({calc_obs['square_feet_net']} sq.ft)\n"
+                f"• **Net Lumber Volume**: {calc_obs['board_feet_net']} board feet\n"
+                f"• **Craftsman Cutting Waste Allowance**: {calc_obs['cutting_waste_allowance']} (for grain matching & saw kerf)\n"
+                f"• **Total Timber Required**: **{calc_obs['board_feet_required']} board feet** (~{calc_obs['estimated_planks_needed']})\n"
+                f"• **Raw Timber Budget**: {calc_obs['estimated_raw_timber_cost_inr']} (@ {calc_obs['rate_per_board_foot_inr']}/bd.ft)\n"
+                f"• **Fasteners, Glue & 4-Coat PU Polish**: {calc_obs['estimated_hardware_finish_cost_inr']}\n"
+                f"• **Estimated Workshop Material Total**: **{calc_obs['total_estimated_material_budget_inr']}**\n"
+                f"• **Crafting Timeline**: *14 to 18 working days* (includes timber resting, mortise joining, and cure time)"
+            )
+
+        if stock_obs and stock_obs.get("status") == "success":
+            sections.append(
+                f"\n📦 **WORKSHOP INVENTORY VERIFICATION**\n"
+                f"• **Item**: {stock_obs['matched_item']}\n"
+                f"• **Stock Status**: {stock_obs['availability_summary']}\n"
+                f"• **Location in Workshop**: `{stock_obs['warehouse_location']}`\n"
+                f"• **Quality Grade**: {stock_obs['grade']}\n"
+                f"• **Craftsman Note**: *\"{stock_obs['craftsman_notes']}\"*"
+            )
+
+        if joinery_obs:
+            sections.append(f"\n{joinery_obs}")
+
+        sections.append(closing)
+        return {
+            "final_response": "\n".join(sections),
+            "trace": trace,
+            "source": "local_autonomous_agent",
+        }
+
+
+# Global singleton agent & backward-compatible alias
 carpenter_agent = CarpenterAgent()
+AutonomousCarpenterAgent = CarpenterAgent
