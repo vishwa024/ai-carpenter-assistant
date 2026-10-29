@@ -302,8 +302,8 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
                 return
 
-            phone = str(payload.get("from", "9876543210"))
-            text = payload.get("text", "")
+            phone = str(payload.get("from") or payload.get("phone") or "9876543210")
+            text = payload.get("text") or payload.get("message") or ""
             name = payload.get("name", "Customer")
             msg_id = payload.get("id", f"sim_{int(time.time() * 1000)}")
 
