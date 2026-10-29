@@ -162,11 +162,19 @@ async function startWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('[WHATSAPP] Connection closed. Reason:', lastDisconnect?.error, 'Reconnecting:', shouldReconnect);
+            const statusCode = (lastDisconnect?.error)?.output?.statusCode;
+            const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+            console.log('[WHATSAPP] Connection closed. StatusCode:', statusCode, 'LoggedOut:', isLoggedOut);
             connectionStatus = 'closed';
             currentQR = null;
-            if (shouldReconnect) {
+            if (isLoggedOut) {
+                console.log('[WHATSAPP] Session ended or logged out. Resetting auth state for fresh QR scan...');
+                try {
+                    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+                } catch (e) {}
+                setTimeout(startWhatsApp, 2000);
+            } else {
+                console.log('[WHATSAPP] Reconnecting in 3 seconds...');
                 setTimeout(startWhatsApp, 3000);
             }
         } else if (connection === 'open') {
@@ -208,7 +216,20 @@ async function startWhatsApp() {
 
             console.log(`\n[INCOMING WHATSAPP] From: +${senderPhone} (${customerName}) | Text: "${textBody}"`);
 
-            // Call Python AI Master Carpenter Backend
+            // 1. Mark incoming message as read
+            try {
+                await sock.readMessages([msg.key]);
+            } catch (e) {}
+
+            // 2. Start "typing..." (3 dots) presence update on customer's phone
+            try {
+                await sock.sendPresenceUpdate('composing', remoteJid);
+            } catch (e) {}
+
+            const startComposing = Date.now();
+
+            // 3. Call Python AI Master Carpenter Backend
+            let replyText = null;
             try {
                 const response = await fetch(PYTHON_API_URL, {
                     method: 'POST',
@@ -221,23 +242,33 @@ async function startWhatsApp() {
                     }),
                 });
 
-                if (!response.ok) {
+                if (response.ok) {
+                    const data = await response.json();
+                    replyText = data.reply || data.response_text;
+                } else {
                     console.error(`[AI ERROR] Python server returned ${response.status}`);
-                    continue;
-                }
-
-                const data = await response.json();
-                const replyText = data.reply || data.response_text;
-
-                if (replyText) {
-                    console.log(`[OUTBOUND REPLY] Sending automatic reply to +${senderPhone}...\n`);
-                    await sock.sendMessage(remoteJid, { text: replyText });
-                    console.log(`[SUCCESS] Automated reply delivered on real WhatsApp!`);
                 }
             } catch (err) {
                 console.error(`[ERROR] Failed to forward message to AI backend: ${err.message}`);
                 console.log(`Tip: Make sure the Python server is running on port 8000!`);
             }
+
+            // 4. Natural human typing delay (3.5 seconds) so customer sees the "typing..." 3 dots
+            const minTypingDelayMs = 3500;
+            const elapsed = Date.now() - startComposing;
+            if (elapsed < minTypingDelayMs) {
+                await new Promise(r => setTimeout(r, minTypingDelayMs - elapsed));
+            }
+
+            // 5. Deliver response and pause typing presence
+            if (replyText) {
+                console.log(`[OUTBOUND REPLY] Sending automatic reply to +${senderPhone}...\n`);
+                await sock.sendMessage(remoteJid, { text: replyText });
+                console.log(`[SUCCESS] Automated reply delivered on real WhatsApp!`);
+            }
+            try {
+                await sock.sendPresenceUpdate('paused', remoteJid);
+            } catch (e) {}
         }
     });
 }

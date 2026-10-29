@@ -266,6 +266,70 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("sharing the photos", res["response_text"].lower())
         self.assertIn("itemized quotation", res["response_text"].lower())
 
+    def test_window_khidkhi_extraction(self):
+        """Test window inquiry 'muje 2 khidkhi banani hai' recognizes 2 windows and asks for dimensions & mesh."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500006"
+        res = agent.process_message(phone, "muje 2 khidkhi banani hai", customer_name="Rahul")
+        self.assertEqual(res["session"]["project_type"], "Custom Wooden Windows")
+        self.assertIn("खिड़की", res["response_text"])
+        self.assertIn("सागवान", res["response_text"])
+        self.assertIn("4x4", res["response_text"])
+
+    def test_human_conversation_flow_no_repeating_templates(self):
+        """Test Parag Patel live conversation simulation: multi-turn distinct human replies with exact math."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "8589951393939"
+        name = "Parag Patel"
+
+        # Turn 1: Cabinet inquiry
+        r1 = agent.process_message(phone, "Cabinet", customer_name=name)
+        self.assertIn("Parag", r1["response_text"])
+        self.assertIn("Custom Storage Cabinet", r1["response_text"])
+
+        # Turn 2: Exact dimensions 10*20feet cabinet
+        r2 = agent.process_message(phone, "10*20feet cabinet", customer_name=name)
+        self.assertIn("200 sq.ft", r2["response_text"])
+        self.assertIn("276,000", r2["response_text"])
+        self.assertIn("350,000", r2["response_text"])
+        self.assertNotEqual(r1["response_text"], r2["response_text"])
+
+        # Turn 3: Labour & transport inquiry - MUST NOT repeat previous message!
+        r3 = agent.process_message(phone, "What would be the total cost including labour and transport", customer_name=name)
+        self.assertIn("Labour", r3["response_text"])
+        self.assertIn("Transport", r3["response_text"])
+        self.assertIn("276,000", r3["response_text"])
+        self.assertNotEqual(r2["response_text"], r3["response_text"])
+
+        # Turn 4: Exact quote request
+        r4 = agent.process_message(phone, "Share me the exact quote", customer_name=name)
+        self.assertIn("official workshop quotation", r4["response_text"].lower())
+        self.assertIn("Option A", r4["response_text"])
+        self.assertIn("Option B", r4["response_text"])
+        self.assertNotEqual(r3["response_text"], r4["response_text"])
+
+        # Turn 5: Material selection - Laminate
+        r5 = agent.process_message(phone, "Laminate", customer_name=name)
+        self.assertIn("Laminate", r5["response_text"])
+        self.assertIn("276,000", r5["response_text"])
+        self.assertNotEqual(r4["response_text"], r5["response_text"])
+
+        # Turn 6: Material selection - PU
+        r6 = agent.process_message(phone, "PU", customer_name=name)
+        self.assertIn("PU", r6["response_text"])
+        self.assertIn("350,000", r6["response_text"])
+        self.assertNotEqual(r5["response_text"], r6["response_text"])
+
+        # Turn 7: Booking site visit
+        r7 = agent.process_message(phone, "Come for visit", customer_name=name)
+        self.assertIn("Saturday at 11:30 AM", r7["response_text"])
+        self.assertIn("Sunday at 4:00 PM", r7["response_text"])
+
+        # Turn 8: Confirmation with landmark
+        r8 = agent.process_message(phone, "Saturday is ok and landmark is sosyo Circle", customer_name=name)
+        self.assertIn("Booking confirmed", r8["response_text"])
+        self.assertIn("Saturday", r8["response_text"])
+
 
 if __name__ == "__main__":
     unittest.main()

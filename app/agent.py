@@ -91,16 +91,17 @@ def detect_language(text: str) -> str:
     # 2. Multi-word phrases in Roman Gujarati
     gu_phrases = [
         "kem cho", "kemcho", "banaavu chhe", "banavu che", "bnavu che",
-        "sofa banavu", "table banavu", "kabaat banavu", "ghare aavo",
-        "ketla rupya", "ketlo kharch", "tamare tya", "sofa joiye"
+        "banavvi che", "banavvu che", "bnavvi che", "sofa banavu", "table banavu",
+        "kabaat banavu", "ghare aavo", "ketla rupya", "ketlo kharch", "tamare tya",
+        "sofa joiye", "mane joiye", "mane banavu"
     ]
     if any(p in text_lower for p in gu_phrases):
         return "gu"
 
     # Single distinct words in Roman Gujarati
     gu_words = {
-        "kemcho", "banaavu", "banavu", "bnavu", "joiye", "joyiye",
-        "chhe", "lakdu", "lakda", "kabaat", "aavjo", "sisam",
+        "kemcho", "banaavu", "banavu", "bnavu", "banavvi", "banavvu", "bnavvi", "joiye", "joyiye",
+        "chhe", "lakdu", "lakda", "kabaat", "aavjo", "sisam", "mane",
         "aabhar", "shaniwar", "raviwar"
     }
     if words.intersection(gu_words):
@@ -108,18 +109,19 @@ def detect_language(text: str) -> str:
 
     # 3. Multi-word phrases in Roman Hindi / Hinglish
     hi_phrases = [
-        "banana hai", "banwana hai", "bana do", "karna hai",
-        "kitna kharcha", "kya price", "kya rate", "aa jao",
-        "sofa banana", "bed banana", "table banana", "thik hai"
+        "banana hai", "banwana hai", "banani hai", "bana do", "karna hai",
+        "kitna kharcha", "kya price", "kya rate", "aa jao", "aao",
+        "sofa banana", "bed banana", "table banana", "thik hai", "theek hai",
+        "kitna padega", "bata do"
     ]
     if any(p in text_lower for p in hi_phrases):
         return "hi"
 
     # Single distinct words in Roman Hindi / Hinglish
     hi_words = {
-        "chahiye", "chahie", "kharcha", "bataiye", "khatiya",
-        "almari", "bhaiya", "shukriya", "dhanyawad",
-        "shanivar", "ravivar", "chalega"
+        "muje", "mujhe", "khidkhi", "khidki", "chahiye", "chahie", "kharcha",
+        "bataiye", "batao", "khatiya", "almari", "bhaiya", "shukriya",
+        "dhanyawad", "shanivar", "ravivar", "chalega", "namaste", "namaskar"
     }
     if words.intersection(hi_words):
         return "hi"
@@ -228,6 +230,26 @@ def get_price_and_timeline_estimate(
         else:
             price = "₹45,000 – ₹70,000 (King Size with hydraulic storage & cushioned headboard)"
             timeline = "12 to 15 working days"
+    elif "cabinet" in p_type:
+        if lang == "gu":
+            price = "₹1,200 – ₹1,800 પ્રતિ ચોરસ ફૂટ (18mm મરીન પ્લાય + લેમિનેટ/PU પોલિશ)"
+            timeline = "12 થી 16 કામકાજના દિવસો વર્કશોપ ફેબ્રિકેશન + 2 દિવસ સાઇટ ફિટિંગ"
+        elif lang == "hi":
+            price = "₹1,200 – ₹1,800 प्रति स्क्वायर फीट (18mm मरीन प्लाई + लैमिनेट/PU पॉलिश)"
+            timeline = "12 से 16 कार्य दिवस वर्कशॉप निर्माण + 2 दिन साइट इंस्टॉलेशन"
+        else:
+            price = "₹1,200 – ₹1,800 per sq. ft. (18mm Marine Ply + 1mm Laminate or PU polish with German soft-close fittings)"
+            timeline = "12 to 16 working days workshop fabrication + 2 days on-site installation"
+    elif "window" in p_type or "khidkhi" in p_type or "khidki" in p_type or "bari" in p_type or "બારી" in p_type or "बारी" in p_type or "खिड़की" in p_type:
+        if lang == "gu":
+            price = "₹1,600 – ₹2,200 પ્રતિ ચોરસ ફૂટ (સીઝન્ડ સાગવાન ચોખટ, 5mm ગ્લાસ અને એસએસ મચ્છર જાળી શટર સાથે)"
+            timeline = "10 થી 14 કામકાજના દિવસો"
+        elif lang == "hi":
+            price = "₹1,600 – ₹2,200 प्रति स्क्वायर फीट (सीजन्ड सागवान चौखट, 5mm ग्लास और SS मच्छर जाली पल्ले सहित)"
+            timeline = "10 से 14 कार्य दिवस"
+        else:
+            price = "₹1,600 – ₹2,200 per sq. ft. in seasoned CP Teak with 5mm glass & SS mosquito mesh shutter"
+            timeline = "10 to 14 working days"
     else:
         if lang == "gu":
             price = "₹1,200 – ₹2,000 પ્રતિ ચોરસ ફૂટ (સાગવાન/મરીન પ્લાય અને પોલિશ મુજબ)"
@@ -240,6 +262,265 @@ def get_price_and_timeline_estimate(
             timeline = "12 to 18 working days"
 
     return price, timeline
+
+
+def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dict[str, Any]:
+    """Parse length, width, area (sqft), seats, or unit counts dynamically."""
+    res: Dict[str, Any] = {
+        "length": None,
+        "width": None,
+        "sqft": None,
+        "unit": "ft",
+        "seats": None,
+        "quantity": 1,
+        "raw": dim_str or "",
+    }
+    target = f"{dim_str or ''} {text_lower}"
+
+    # Check quantity like '2 khidkhi', '2 windows'
+    q_match = re.search(r"(\d+)\s*(?:khidkhi|khidki|windows?|doors?|kabaat|बारी|બારી|खिड़की|દરવાજા)", target)
+    if q_match:
+        res["quantity"] = int(q_match.group(1))
+
+    # Parse rectangular dimensions (e.g. 10*20, 10x20, 10 by 20, 12x9, 4x4)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:x|\*|by)\s*(\d+(?:\.\d+)?)", target)
+    if match:
+        l = float(match.group(1))
+        w = float(match.group(2))
+        res["length"] = l
+        res["width"] = w
+        # Check if inches
+        if "inch" in target:
+            res["sqft"] = round((l * w) / 144.0, 1)
+            res["unit"] = "inch"
+        else:
+            res["sqft"] = round(l * w, 1)
+            res["unit"] = "ft"
+        return res
+
+    # Seater count
+    s_match = re.search(r"(\d+)\s*(?:seater|seat|સીટર|सीटर)", target)
+    if s_match:
+        res["seats"] = int(s_match.group(1))
+        return res
+
+    # King / Queen beds
+    if "king" in target:
+        res["sqft"] = 39.0  # 6.5 x 6 ft
+        res["length"] = 6.5
+        res["width"] = 6.0
+    elif "queen" in target:
+        res["sqft"] = 32.5  # 6.5 x 5 ft
+        res["length"] = 6.5
+        res["width"] = 5.0
+
+    return res
+
+
+def calculate_turnkey_quote(
+    project_type: Optional[str],
+    dim_info: Dict[str, Any],
+    lang: str = "en",
+) -> Dict[str, Any]:
+    """Calculate mathematically exact turn-key quotes, materials, labour, and transport breakdown."""
+    p_type = (project_type or "cabinet").lower()
+    sqft = dim_info.get("sqft") or 80.0
+    qty = dim_info.get("quantity") or 1
+    seats = dim_info.get("seats")
+
+    # 1. Custom Wardrobe / Cabinet / Storage
+    if any(k in p_type for k in ["cabinet", "wardrobe", "cupboard", "almirah", "almari", "કબાટ", "अलमारी"]):
+        total_sqft = float(sqft * qty)
+        rate_lam = 1380
+        total_lam = int(round(total_sqft * rate_lam))
+        rate_pu = 1750
+        total_pu = int(round(total_sqft * rate_pu))
+
+        # Itemized breakdown for Laminate
+        mat_lam = int(round(total_lam * 0.50))
+        fit_lam = int(round(total_lam * 0.12))
+        surf_lam = int(round(total_lam * 0.15))
+        labour_lam = int(round(total_lam * 0.19))
+        transport_lam = total_lam - (mat_lam + fit_lam + surf_lam + labour_lam)
+
+        # Itemized breakdown for PU
+        mat_pu = int(round(total_pu * 0.42))
+        fit_pu = int(round(total_pu * 0.10))
+        surf_pu = int(round(total_pu * 0.22))
+        labour_pu = int(round(total_pu * 0.22))
+        transport_pu = total_pu - (mat_pu + fit_pu + surf_pu + labour_pu)
+
+        timeline = "14 થી 18 કામકાજના દિવસો" if lang == "gu" else ("14 से 18 कार्य दिवस" if lang == "hi" else "14 to 18 working days")
+        return {
+            "sqft": total_sqft,
+            "rate_lam": rate_lam,
+            "total_lam": total_lam,
+            "rate_pu": rate_pu,
+            "total_pu": total_pu,
+            "breakdown_lam": {
+                "materials": mat_lam,
+                "fittings": fit_lam,
+                "finish": surf_lam,
+                "labour": labour_lam,
+                "transport": transport_lam,
+            },
+            "breakdown_pu": {
+                "materials": mat_pu,
+                "fittings": fit_pu,
+                "finish": surf_pu,
+                "labour": labour_pu,
+                "transport": transport_pu,
+            },
+            "timeline": timeline,
+            "type": "cabinet_wardrobe"
+        }
+
+    # 2. Windows / Khidkhi
+    elif any(k in p_type for k in ["window", "khidkhi", "khidki", "bari", "બારી", "बारी", "खिड़की"]):
+        base_sqft = sqft if (dim_info.get("length") and dim_info.get("width")) else 16.0
+        total_sqft = float(base_sqft * qty)
+        rate = 1950
+        total_cost = int(round(total_sqft * rate))
+
+        mat = int(round(total_cost * 0.55))
+        glass_mesh = int(round(total_cost * 0.15))
+        fittings = int(round(total_cost * 0.08))
+        labour = int(round(total_cost * 0.18))
+        transport = total_cost - (mat + glass_mesh + fittings + labour)
+
+        timeline = "10 થી 14 કામકાજના દિવસો" if lang == "gu" else ("10 से 14 कार्य दिवस" if lang == "hi" else "10 to 14 working days")
+        return {
+            "sqft": total_sqft,
+            "rate": rate,
+            "total": total_cost,
+            "quantity": qty,
+            "breakdown": {
+                "timber": mat,
+                "glass_mesh": glass_mesh,
+                "fittings": fittings,
+                "labour": labour,
+                "transport": transport,
+            },
+            "timeline": timeline,
+            "type": "window"
+        }
+
+    # 3. Modular Kitchen
+    elif any(k in p_type for k in ["kitchen", "રસોઈ", "रसोई"]):
+        total_sqft = float(sqft * qty)
+        rate = 1850
+        total_cost = int(round(total_sqft * rate))
+
+        mat = int(round(total_cost * 0.46))
+        fittings = int(round(total_cost * 0.23))
+        finish = int(round(total_cost * 0.15))
+        labour = int(round(total_cost * 0.13))
+        transport = total_cost - (mat + fittings + finish + labour)
+
+        timeline = "14 થી 18 કામકાજના દિવસો" if lang == "gu" else ("14 से 18 कार्य दिवस" if lang == "hi" else "14 to 18 working days")
+        return {
+            "sqft": total_sqft,
+            "rate": rate,
+            "total": total_cost,
+            "breakdown": {
+                "materials": mat,
+                "fittings": fittings,
+                "finish": finish,
+                "labour": labour,
+                "transport": transport,
+            },
+            "timeline": timeline,
+            "type": "kitchen"
+        }
+
+    # 4. Dining Table
+    elif any(k in p_type for k in ["dining", "table", "ટેબલ", "मेज"]):
+        is_8_seater = seats == 8 or "8" in str(dim_info.get("raw", ""))
+        total_cost = 68000 if is_8_seater else 46000
+        timber = int(round(total_cost * 0.56))
+        cushions = int(round(total_cost * 0.15))
+        labour = int(round(total_cost * 0.20))
+        transport = total_cost - (timber + cushions + labour)
+
+        timeline = "15 થી 20 કામકાજના દિવસો" if lang == "gu" else ("15 से 20 कार्य दिवस" if lang == "hi" else "15 to 20 working days")
+        return {
+            "total": total_cost,
+            "is_8_seater": is_8_seater,
+            "breakdown": {
+                "timber": timber,
+                "cushions": cushions,
+                "labour": labour,
+                "transport": transport,
+            },
+            "timeline": timeline,
+            "type": "dining"
+        }
+
+    # 5. Wooden Sofa Set
+    elif any(k in p_type for k in ["sofa", "couch", "સોફા", "सोफा"]):
+        raw_dim = str(dim_info.get("raw", "")).lower()
+        is_l_shape = "l-shape" in raw_dim or "corner" in raw_dim
+        is_5_seater = seats == 5 or "5" in raw_dim
+        if is_l_shape:
+            total_cost = 62000
+        elif is_5_seater:
+            total_cost = 46000
+        else:
+            total_cost = 28500
+
+        timber = int(round(total_cost * 0.56))
+        foam = int(round(total_cost * 0.23))
+        labour = int(round(total_cost * 0.16))
+        transport = total_cost - (timber + foam + labour)
+
+        timeline = "12 થી 16 કામકાજના દિવસો" if lang == "gu" else ("12 से 16 कार्य दिवस" if lang == "hi" else "12 to 16 working days")
+        return {
+            "total": total_cost,
+            "breakdown": {
+                "timber": timber,
+                "foam": foam,
+                "labour": labour,
+                "transport": transport,
+            },
+            "timeline": timeline,
+            "type": "sofa"
+        }
+
+    # 6. Custom Storage Bed
+    elif any(k in p_type for k in ["bed", "palang", "પલંગ", "पलंग"]):
+        is_king = "king" in str(dim_info.get("raw", "")).lower() or sqft >= 36.0
+        total_cost = 56000 if is_king else 34000
+        ply = int(round(total_cost * 0.50))
+        mechanism = int(round(total_cost * 0.12))
+        headboard = int(round(total_cost * 0.14))
+        labour = int(round(total_cost * 0.20))
+        transport = total_cost - (ply + mechanism + headboard + labour)
+
+        timeline = "12 થી 15 કામકાજના દિવસો" if lang == "gu" else ("12 से 15 कार्य दिवस" if lang == "hi" else "12 to 15 working days")
+        return {
+            "total": total_cost,
+            "breakdown": {
+                "ply": ply,
+                "mechanism": mechanism,
+                "headboard": headboard,
+                "labour": labour,
+                "transport": transport,
+            },
+            "timeline": timeline,
+            "type": "bed"
+        }
+
+    # Default / General
+    total_sqft = float(sqft * qty)
+    rate = 1400
+    total_cost = int(round(total_sqft * rate))
+    return {
+        "sqft": total_sqft,
+        "rate": rate,
+        "total": total_cost,
+        "timeline": "12 થી 18 કામકાજના દિવસો" if lang == "gu" else ("12 से 18 कार्य दिवस" if lang == "hi" else "12 to 18 working days"),
+        "type": "general"
+    }
 
 
 def generate_bargaining_response(session: CustomerSession, budget: Optional[int], user_text: str) -> str:
@@ -528,10 +809,14 @@ class CarpenterAgent:
         # Project type detection (Multilingual: Gujarati, Hindi, English)
         if any(w in text_lower for w in ["sofa", "couch", "setee", "diwan", "સોફા", "સોફો", "सोफा", "बैठक", "दीवान"]):
             session.project_type = "Custom Wooden Sofa"
+        elif any(w in text_lower for w in ["cabinet", "cabinets"]):
+            session.project_type = "Custom Storage Cabinet"
         elif any(w in text_lower for w in ["wardrobe", "cupboard", "closet", "almirah", "almari", "kabaat", "kapat", "કબાટ", "अलमारी", "अलमीरा"]):
             session.project_type = "Custom Wardrobe"
-        elif any(w in text_lower for w in ["kitchen", "modular kitchen", "cabinets", "rasoi", "રસોઈ", "रसोई"]):
+        elif any(w in text_lower for w in ["kitchen", "modular kitchen", "rasoi", "રસોઈ", "रसोई"]):
             session.project_type = "Modular Kitchen"
+        elif any(w in text_lower for w in ["window", "windows", "khidki", "khidkhi", "khidkiya", "khidkiyan", "bari", "બારી", "बारी", "खिड़की", "खिड़कियां", "खिडकी"]):
+            session.project_type = "Custom Wooden Windows"
         elif any(w in text_lower for w in ["dining", "table", "chair", "mej", "ટેબલ", "ડાઇનિંગ", "मेज", "डाइनिंग"]):
             session.project_type = "Solid Wood Dining Table"
         elif any(w in text_lower for w in ["door", "entrance door", "chaukhat", "carving door", "darwaza", "darwaja", "darwajo", "દરવાજો", "દરવાજા", "ચોખટ", "दरवाज़ा", "दरवाजा", "चौखट"]):
@@ -543,8 +828,8 @@ class CarpenterAgent:
         elif any(w in text_lower for w in ["mandir", "pooja", "temple", "devghar", "મંદિર", "પૂજા", "मंदिर", "पूजा"]):
             session.project_type = "Pooja Mandir"
 
-        # Dimensions detection (e.g. 10x8, 10x8 ft, 3 seater, three sofa, 6 seater, 7x3)
-        dim_match = re.search(r"(\d+(\.\d+)?\s*(x|\*|by)\s*\d+(\.\d+)?\s*(ft|feet|inch|in|m|meter|ફૂટ|ફીટ|फुट|फीट)?)", text_lower)
+        # Dimensions detection (e.g. 10x8, 10x8 ft, 10*20, 10*20feet, 3 seater, three sofa, 6 seater, 7x3)
+        dim_match = re.search(r"(\d+(?:\.\d+)?\s*(?:x|\*|by)\s*\d+(?:\.\d+)?\s*(?:ft|feet|inch|in|m|meter|ફૂટ|ફીટ|फुट|फीट)?)", text_lower)
         if dim_match:
             session.dimensions = dim_match.group(0).strip()
         elif any(k in text_lower for k in ["3 seater", "3-seater", "three sofa", "3 sofa", "3 seater sofa", "૩ સીટર", "३ सीटर", "3 seat"]):
@@ -557,6 +842,10 @@ class CarpenterAgent:
             session.dimensions = "8-Seater (approx 8ft x 3.5ft)"
         elif any(k in text_lower for k in ["l-shape", "l shape", "corner sofa"]):
             session.dimensions = "L-Shape Sectional"
+        elif any(k in text_lower for k in ["king size", "king bed", "કિંગ સાઈઝ", "किंग साइज"]):
+            session.dimensions = "King Size (approx 6.5ft x 6ft)"
+        elif any(k in text_lower for k in ["queen size", "queen bed", "ક્વીન સાઈઝ", "क्वीन साइज"]):
+            session.dimensions = "Queen Size (approx 6.5ft x 5ft)"
 
         # Materials detection
         materials_map = {
@@ -744,8 +1033,14 @@ class CarpenterAgent:
         address_markers = ["flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block", "society", "colony", "layout", "nagar", "સોસાયટી", "सोसायटी"]
         has_address = any(marker in text_lower for marker in address_markers)
 
-        # 1. Post-Booking Confirmation Courtesy
-        if session.appointment_status == "confirmed" and (words.intersection(courtesy_words) or "thank you" in text_lower or "thanks" in text_lower or "આભાર" in text_lower or "धन्यवाद" in text_lower):
+        # 1. Post-Booking Confirmation Courtesy (only when customer is closing after confirmation)
+        is_courtesy_close = (
+            (words.intersection(courtesy_words) or "thank you" in text_lower or "thanks" in text_lower or "આભાર" in text_lower or "धन्यवाद" in text_lower)
+            and not has_time_slot
+            and not has_address
+            and len(words) <= 4
+        )
+        if session.appointment_status == "confirmed" and is_courtesy_close:
             slot_str = session.appointment_slot or "your scheduled appointment"
             if lang == "gu":
                 return (
@@ -892,41 +1187,283 @@ class CarpenterAgent:
                 f"Which slot suits you best? Also, please share your *apartment address or landmark* so we can lock it in! 🪚✨"
             )
 
-        # 4. Greetings & Initial Inquiry
+        # Extract caller name for personal addressing
+        caller_name = session.customer_name or ""
+        first_name = ""
+        if caller_name and not caller_name.lower().startswith("client") and caller_name.lower() != "customer":
+            clean_n = re.sub(r"[^a-zA-Z\u0900-\u097F\u0A80-\u0AFF]", "", caller_name.split()[0])
+            if clean_n and len(clean_n) >= 2:
+                first_name = clean_n
+
+        if lang == "gu":
+            name_title = f"{first_name}ભાઈ" if first_name else "જી"
+        elif lang == "hi":
+            name_title = f"{first_name} जी" if first_name else "जी"
+        else:
+            name_title = f"{first_name} ji" if first_name else "Ji"
+
+        # 4. Greetings & Initial Discovery
         greetings = {"hi", "hello", "hey", "namaste", "start", "greetings", "kemcho", "kem cho", "કેમ છો", "નમસ્તે", "પ્રણામ", "नमस्ते", "प्रणाम", "राधे राधे", "जय श्री कृष्णा"}
-        is_only_greeting = (bool(words.intersection(greetings)) or any(g in text_lower for g in ["kem cho", "કેમ છો", "નમસ્તે", "नमस्ते"])) and (
+        has_greeting_word = bool(words.intersection(greetings)) or any(g in text_lower for g in ["kem cho", "કેમ છો", "નમસ્તે", "नमस्ते"])
+        is_greeting = has_greeting_word and (
             len(words) <= 3 or (not session.project_type and not session.dimensions and not session.preferred_materials)
         )
-        if is_only_greeting and len(session.history) <= 2:
+        if is_greeting and len(session.history) <= 2:
             if lang == "gu":
                 return (
-                    f"નમસ્તે! 🙏 હું *રાજેશ શર્મા*, હેરિટેજ વુડવર્ક્સ (Heritage Woodworks) નો માસ્ટર કારીગર.\n\n"
+                    f"નમસ્તે {name_title}! 🙏\n\n"
+                    f"હેરિટેજ વુડવર્ક્સ (Heritage Woodworks) માં આપનું સ્વાગત છે. હું *રાજેશ શર્મા* (માસ્ટર કારીગર).\n\n"
                     f"અમે સાગવાન (Teak), શીશમ અને વોટરપ્રૂફ મરીન પ્લાયવુડમાંથી પ્રીમિયમ ફર્નિચર બનાવીએ છીએ:\n\n"
                     f"• *કબાટ / વોર્ડરોબ* (Hinged / Sliding)\n"
                     f"• *મોડ્યુલર કિચન* (IS 710 BWP Marine Ply)\n"
                     f"• *સોલિડ વુડ સોફા સેટ & ડાઇનિંગ ટેબલ*\n"
-                    f"• *મુખ્ય દરવાજા & ચોખટ*\n\n"
+                    f"• *મુખ્ય દરવાજા & બારીઓ*\n\n"
                     f"તમારે તમારા ઘર માટે શું બનાવવું છે? 🪵✨"
                 )
             elif lang == "hi":
                 return (
-                    f"नमस्ते! 🙏 मैं *राजेश शर्मा*, हेरिटेज वुडवर्क्स (Heritage Woodworks) का मास्टर कारिगर।\n\n"
+                    f"नमस्ते {name_title}! 🙏\n\n"
+                    f"हेरिटेज वुडवर्क्स (Heritage Woodworks) में आपका स्वागत है। मैं *राजेश शर्मा* (मास्टर कारिगर)।\n\n"
                     f"हम सागवान (Teak), शीशम और वाटरप्रूफ मरीन प्लाईवुड से हाथ से बना हुआ मजबूत फर्नीचर तैयार करते हैं:\n\n"
                     f"• *वार्डरोब / अलमारी* (Hinged / Sliding)\n"
                     f"• *मॉड्युलर किचन* (IS 710 BWP Marine Ply)\n"
                     f"• *लकड़ी के सोफा सेट & डाइनिंग टेबल*\n"
-                    f"• *मेन डोर & चौखट*\n\n"
+                    f"• *मेन डोर & खिड़कियां*\n\n"
                     f"आप अपने घर के लिए क्या बनवाना चाहते हैं? 🪵✨"
                 )
             return (
-                f"Namaste! 🙏 I am *Rajesh Sharma*, Master Carpenter at *Heritage Woodworks*.\n\n"
-                f"We handcraft bespoke wardrobes, modular kitchens, solid Teak/Sheesham dining tables, and entrance doors:\n\n"
+                f"Namaste {name_title}! 🙏\n\n"
+                f"Welcome to *Heritage Woodworks*. I am *Rajesh Sharma*, Master Carpenter at *Heritage Woodworks*.\n\n"
+                f"We handcraft bespoke wardrobes, modular kitchens, solid Teak/Sheesham dining tables, and architectural woodwork:\n\n"
                 f"• *Fitted Wardrobes* (Hinged / Sliding)\n"
                 f"• *Modular Kitchens* (IS 710 BWP Marine Ply)\n"
                 f"• *Solid Wood Dining Sets* (Teak / Sheesham)\n"
-                f"• *Main Doors & Chaukhats*\n\n"
+                f"• *Main Doors & Windows*\n\n"
                 f"What piece are you planning to make for your home? 🪵✨"
             )
+
+        # Check if customer inquiry asks about Labour, Transport, or Total All-Inclusive Turnkey Cost
+        is_labour_transport_inquiry = any(
+            k in text_lower for k in [
+                "labour", "labor", "transport", "transportation", "shipping", "delivery", "fitting charge",
+                "total cost including", "including labour", "including transport", "labour and transport",
+                "total cost", "all inclusive", "hidden charge",
+                "લેબર", "ટ્રાન્સપોર્ટ", "ડિલિવરી", "મજૂરી", "ભાડું",
+                "मजदूरी", "लेबर", "ट्रांसपोर्ट", "डिलीवरी", "भाड़ा"
+            ]
+        )
+        if is_labour_transport_inquiry and (session.dimensions or session.project_type):
+            dim_info = parse_dimension_details(session.dimensions, text_lower)
+            quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
+            p_name = session.project_type or "Custom Woodwork"
+            dim_str = session.dimensions or f"{int(quote.get('sqft', 80))} sq.ft."
+
+            if quote.get("type") == "cabinet_wardrobe":
+                b_lam = quote["breakdown_lam"]
+                if lang == "gu":
+                    return (
+                        f"હા {name_title}! 🙏 અમારો ભાવ સંપૂર્ણ ટર્ન-કી (લેબર અને ટ્રાન્સપોર્ટ સહિત) નો હોય છે.\n\n"
+                        f"તમારા *{p_name}* ({dim_str}, {int(quote['sqft'])} ચોરસ ફૂટ) નો સંપૂર્ણ હિસાબ:\n\n"
+                        f"• *18mm IS 710 BWP મરીન પ્લાય*: ₹{b_lam['materials']:,}\n"
+                        f"• *જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ (Hettich)*: ₹{b_lam['fittings']:,}\n"
+                        f"• *1mm એન્ટી-સ્ક્રેચ લેમિનેટ ફિનિશ*: ₹{b_lam['finish']:,}\n"
+                        f"• 🔨 *માસ્ટર કારીગરી & જોઈનરી લેબર*: *₹{b_lam['labour']:,}*\n"
+                        f"• 🚚 *ઘર સુધી સેફ ટ્રાન્સપોર્ટ & ફિટિંગ*: *₹{b_lam['transport']:,}*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"• *કુલ ટર્ન-કી કિંમત (લેમિનેટ)*: *₹{quote['total_lam']:,}* (આશરે ₹{quote['rate_lam']}/ચોરસ ફૂટ)\n"
+                        f"• *(અથવા પ્રીમિયમ 4-કોટ PU પોલિશમાં*: *₹{quote['total_pu']:,}* ઓલ-ઇન્ક્લુઝિવ)\n\n"
+                        f"✅ *ઝીરો હિડન ચાર્જ*: સાઇટ પર કોઈ અલગથી મજૂરી કે ડિલિવરી ચાર્જ નથી લાગતો. બધું જ આમાં આવી ગયું!\n\n"
+                        f"• *સમય*: {quote['timeline']} + 2 દિવસ ફિટિંગ.\n\n"
+                        f"લેવલ અને સાઇઝ ચેક કરવા માટે શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી માપણી મુલાકાત રાખીએ? 📐🪵"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"जी हाँ {name_title}! 🙏 हमारा कोटेशन पूरी तरह से टर्न-की और ऑल-इन्क्लूसिव (लेबर और ट्रांसपोर्ट सहित) होता है।\n\n"
+                        f"आपकी *{p_name}* ({dim_str}, {int(quote['sqft'])} स्क्वायर फीट) का पूरा हिसाब:\n\n"
+                        f"• *18mm IS 710 BWP मरीन प्लाई*: ₹{b_lam['materials']:,}\n"
+                        f"• *जर्मन सॉफ्ट-क्लोज़ फिटिंग्स (Hettich)*: ₹{b_lam['fittings']:,}\n"
+                        f"• *1mm एंटी-स्क्रैच लैमिनेट फिनिश*: ₹{b_lam['finish']:,}\n"
+                        f"• 🔨 *प्रिसिजन कारपेंट्री & वर्कशॉप लेबर*: *₹{b_lam['labour']:,}*\n"
+                        f"• 🚚 *डोरस्टेप सेफ ट्रांसपोर्ट & ऑन-साइट फिटिंग*: *₹{b_lam['transport']:,}*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"• *कुल टर्न-की लागत (लैमिनेट)*: *₹{quote['total_lam']:,}* (लगभग ₹{quote['rate_lam']}/स्क्वायर फीट)\n"
+                        f"• *(अथवा प्रीमियम 4-कोट PU पॉलिश में*: *₹{quote['total_pu']:,}* ऑल-इन्क्लूसिव)\n\n"
+                        f"✅ *ज़ीरो हिडन चार्ज गारंटी*: इसमें पूरा मटेरियल, हार्डवेयर, लेबर और साइट पर इंस्टॉलेशन शामिल है। डिलीवरी पर कोई अतिरिक्त लेबर या किराया नहीं देना होगा!\n\n"
+                        f"• *समय*: {quote['timeline']} + 2 दिन साइट फिटिंग।\n\n"
+                        f"क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* 15 मिनट की फ्री विज़िट तय कर लें? 📐🪵"
+                    )
+                return (
+                    f"Yes {name_title}! 🙏 Our quotation is 100% turn-key and all-inclusive of labour, transport, and fitting.\n\n"
+                    f"Here is the complete turn-key cost breakdown for your *{p_name}* ({dim_str}, {int(quote['sqft'])} sq.ft.):\n\n"
+                    f"• *18mm IS 710 BWP Marine Plywood*: ₹{b_lam['materials']:,}\n"
+                    f"• *German Soft-Close Hardware (Hettich)*: ₹{b_lam['fittings']:,}\n"
+                    f"• *1mm Anti-Scratch Laminate Finish*: ₹{b_lam['finish']:,}\n"
+                    f"• 🔨 *Precision Carpentry & Workshop Joinery Labour*: *₹{b_lam['labour']:,}*\n"
+                    f"• 🚚 *Doorstep Safe Transport & On-site Fitting*: *₹{b_lam['transport']:,}*\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"• *Total Turn-key Cost (Laminate)*: *₹{quote['total_lam']:,}* (around ₹{quote['rate_lam']}/sq.ft)\n"
+                    f"• *(Or in Premium 4-Coat PU Polish*: *₹{quote['total_pu']:,}* all-inclusive)\n\n"
+                    f"✅ *Zero Hidden Charges Guarantee*: This includes complete raw materials, hardware, workshop fabrication, transport, and on-site alignment. No extra labour or delivery fee is charged at site!\n\n"
+                    f"• *Timeline*: {quote['timeline']} + 2 days installation.\n\n"
+                    f"Shall we arrange a quick 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM* to verify site levels? 📐🪵"
+                )
+            else:
+                tot = quote.get("total", 50000)
+                b = quote.get("breakdown", {})
+                labour_val = b.get("labour", int(tot * 0.18))
+                transport_val = b.get("transport", int(tot * 0.05))
+                if lang == "gu":
+                    return (
+                        f"હા {name_title}! 🙏 અમારો ભાવ ટર્ન-કી હોય છે, જેમાં મજૂરી અને ટ્રાન્સપોર્ટ બધું જ સામેલ છે:\n\n"
+                        f"• *કામ*: *{p_name}* ({dim_str})\n"
+                        f"• 🔨 *કારીગરી અને લેબર*: *₹{labour_val:,}*\n"
+                        f"• 🚚 *ટ્રાન્સપોર્ટ અને ફિટિંગ*: *₹{transport_val:,}*\n"
+                        f"• *કુલ કિંમત*: *₹{tot:,}* (ઓલ-ઇન્ક્લુઝિવ)\n\n"
+                        f"સાઇટ પર કોઈ અલગ ખર્ચ નથી થતો. શું અમે રૂબરૂ માપણી માટે આવીએ? 📐"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"जी हाँ {name_title}! 🙏 हमारा कोटेशन ऑल-इन्क्लूसिव होता है, जिसमें लेबर और ट्रांसपोर्ट सब शामिल है:\n\n"
+                        f"• *प्रोजेक्ट*: *{p_name}* ({dim_str})\n"
+                        f"• 🔨 *कारीगरी और लेबर*: *₹{labour_val:,}*\n"
+                        f"• 🚚 *ट्रांसपोर्ट और फिटिंग*: *₹{transport_val:,}*\n"
+                        f"• *कुल लागत*: *₹{tot:,}* (ऑल-इन्क्लूसिव)\n\n"
+                        f"डिलीवरी पर कोई अलग चार्ज नहीं लगेगा। क्या हम नाप लेने के लिए विज़िट तय करें? 📐"
+                    )
+                return (
+                    f"Yes {name_title}! 🙏 Our quotation is all-inclusive of labour, transport, and fitting:\n\n"
+                    f"• *Project*: *{p_name}* ({dim_str})\n"
+                    f"• 🔨 *Skilled Labour*: *₹{labour_val:,}*\n"
+                    f"• 🚚 *Transport & On-site Assembly*: *₹{transport_val:,}*\n"
+                    f"• *Total Turn-key Cost*: *₹{tot:,}* (all-inclusive)\n\n"
+                    f"There are zero hidden costs on delivery. Shall we schedule a site measurement visit? 📐"
+                )
+
+        # Check if customer asks for an Exact / Instant Quote
+        is_exact_quote_inquiry = any(
+            k in text_lower for k in [
+                "exact quote", "share me the exact quote", "share quote", "give quote", "instant quote",
+                "quotation", "final quote", "pukka quote", "exact cost", "send quote",
+                "कोटेशन", "पक्का कोटेशन", "पक्का भाव", "हिसाब", "ક્વોટેશન", "પાક્કો ભાવ"
+            ]
+        ) or (words == {"quote"} or words == {"rates"})
+        if is_exact_quote_inquiry and (session.dimensions or session.project_type):
+            dim_info = parse_dimension_details(session.dimensions, text_lower)
+            quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
+            p_name = session.project_type or "Custom Cabinet"
+            dim_str = session.dimensions or f"{int(quote.get('sqft', 80))} sq.ft."
+
+            if quote.get("type") == "cabinet_wardrobe":
+                if lang == "gu":
+                    return (
+                        f"અહીં તમારી *{p_name}* ({dim_str}, {int(quote['sqft'])} ચોરસ ફૂટ) નું સત્તાવાર ક્વોટેશન છે, {name_title}:\n\n"
+                        f"📐 *માપ*: {int(quote['sqft'])} ચોરસ ફૂટ\n"
+                        f"🪵 *મટિરિયલ*: 18mm IS 710 BWP વોટરપ્રૂફ મરીન પ્લાય (10 વર્ષની વોરંટી)\n"
+                        f"⚙️ *હાર્ડવેર*: હેટીચ (Hettich) જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ\n\n"
+                        f"📦 *ટર્ન-કી પેકેજ (લેબર & ટ્રાન્સપોર્ટ સહિત)*:\n"
+                        f"1️⃣ *વિકલ્પ A — 1mm એન્ટી-સ્ક્રેચ લેમિનેટ ફિનિશ*:\n"
+                        f"   • કુલ: *₹{quote['total_lam']:,}* (આશરે ₹{quote['rate_lam']}/ચોરસ ફૂટ)\n"
+                        f"2️⃣ *વિકલ્પ B — પ્રીમિયમ 4-કોટ PU પોલિશ (ઇટાલિયન ફિનિશ)*:\n"
+                        f"   • કુલ: *₹{quote['total_pu']:,}* (આશરે ₹{quote['rate_pu']}/ચોરસ ફૂટ)\n\n"
+                        f"⏳ *બનાવવાનો સમય*: {quote['timeline']} + 2 દિવસ ફિટિંગ.\n"
+                        f"🛡️ *વોરંટી*: લાકડા અને પ્લાયવુડ સ્ટ્રક્ચર પર 10 વર્ષની ગેરંટી.\n\n"
+                        f"તમે કયું ફિનિશ પસંદ કરશો — *લેમિનેટ* કે *PU પોલિશ*? 🪵✨"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"यह रहा आपकी *{p_name}* ({dim_str}, {int(quote['sqft'])} स्क्वायर फीट) का पक्का कोटेशन, {name_title}:\n\n"
+                        f"📐 *क्षेत्रफल*: {int(quote['sqft'])} स्क्वायर फीट\n"
+                        f"🪵 *कोर मटेरियल*: 18mm IS 710 BWP वाटरप्रूफ मरीन प्लाई (10 साल वारंटी)\n"
+                        f"⚙️ *हार्डवेयर*: हेटिच (Hettich) जर्मन सॉफ्ट-क्लोज़ हिन्जेस और चैनल्स\n\n"
+                        f"📦 *टर्न-की पैकेज (लेबर और ट्रांसपोर्ट सहित)*:\n"
+                        f"1️⃣ *विकल्प A — 1mm एंटी-स्क्रैच लैमिनेट फिनिश*:\n"
+                        f"   • कुल लागत: *₹{quote['total_lam']:,}* (लगभग ₹{quote['rate_lam']}/स्क्वायर फीट)\n"
+                        f"2️⃣ *विकल्प B — प्रीमियम 4-कोट PU पॉलिश (इटैलियन फिनिश)*:\n"
+                        f"   • कुल लागत: *₹{quote['total_pu']:,}* (लगभग ₹{quote['rate_pu']}/स्क्वायर फीट)\n\n"
+                        f"⏳ *निर्माण समय*: {quote['timeline']} + 2 दिन ऑन-साइट इंस्टॉलेशन।\n"
+                        f"🛡️ *वारंटी*: प्लाईवुड और फ्रेम पर 10 साल की मजबूती गारंटी।\n\n"
+                        f"आप कौन सा फिनिश पसंद करेंगे — *लैमिनेट* या *PU पॉलिश*? 🪵✨"
+                    )
+                return (
+                    f"Here is your official workshop quotation for *{p_name}* ({dim_str}, {int(quote['sqft'])} sq.ft.), {name_title}:\n\n"
+                    f"📐 *Project Area*: {int(quote['sqft'])} sq. ft.\n"
+                    f"🪵 *Core Material*: 18mm IS 710 Boiling Water Proof (BWP) Marine Ply (10-Year Warranty)\n"
+                    f"⚙️ *Hardware*: German Soft-Close Hinges & Heavy-Duty Telescopic Channels (Hettich)\n\n"
+                    f"📦 *Turn-key Packages (All-Inclusive of Labour & Transport)*:\n"
+                    f"1️⃣ *Option A — 1mm Anti-Scratch Laminate (Merino/Century)*:\n"
+                    f"   • Total: *₹{quote['total_lam']:,}* (around ₹{quote['rate_lam']}/sq.ft)\n"
+                    f"   • Includes: Ply + German Fittings + Finish + Labour + Transport & Fitting.\n"
+                    f"2️⃣ *Option B — Premium 4-Coat PU Polish (Italian Finish)*:\n"
+                    f"   • Total: *₹{quote['total_pu']:,}* (around ₹{quote['rate_pu']}/sq.ft)\n"
+                    f"   • Seamless, luxurious matte/satin showroom finish.\n\n"
+                    f"⏳ *Completion Timeline*: {quote['timeline']}.\n"
+                    f"🛡️ *Warranty*: 10 Years on core timber & plywood structure.\n\n"
+                    f"Which finish would you prefer — *Laminate* or *PU Polish*? Or shall we book a quick visit to inspect the site? 📐✨"
+                )
+
+        # Check if customer selects a specific finish: Laminate, PU, Acrylic
+        is_finish_selection = any(
+            f in text_lower for f in [
+                "laminate", "pu", "pu polish", "acrylic", "veneer",
+                "લેમિનેટ", "પીયુ", "એક્રેલિક", "વિનિયર",
+                "लैमिनेट", "पीयू", "एक्रेलिक", "विनीयर"
+            ]
+        ) and len(words) <= 4
+        if is_finish_selection:
+            dim_info = parse_dimension_details(session.dimensions, text_lower)
+            quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
+            p_name = session.project_type or "Custom Furniture"
+            dim_str = session.dimensions or f"{int(quote.get('sqft', 80))} sq.ft."
+
+            if "pu" in text_lower or "પીયુ" in text_lower or "पीयू" in text_lower:
+                pu_cost = quote.get("total_pu") or quote.get("total") or 150000
+                if lang == "gu":
+                    return (
+                        f"ઉત્તમ પસંદગી, {name_title}! ✨ PU (Polyurethane) ઇટાલિયન પોલિશ તમારા *{p_name}* ({dim_str}) માટે સિલેક્ટ થઈ ગયું છે.\n\n"
+                        f"• *કુલ ટર્ન-કી કિંમત*: *₹{pu_cost:,}* (18mm મરીન પ્લાય, હેટીચ ફિટિંગ્સ, 4-કોટ PU ફિનિશ, લેબર અને ટ્રાન્સપોર્ટ સહિત).\n"
+                        f"• *બનાવવાનો સમય*: {quote['timeline']}.\n\n"
+                        f"PU માં આપણે મેટ (Matte), સેટિન (Satin) કે હાઈ-ગ્લોસ (High-Gloss) લૂક રાખી શકીએ છીએ.\n\n"
+                        f"શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* અસલી PU સેમ્પલ્સ સાથે માપણી માટે આવીએ? 📐🪵"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"शानदार पसंद, {name_title}! ✨ PU (Polyurethane) इटैलियन पॉलिश आपकी *{p_name}* ({dim_str}) के लिए तय हो गई है।\n\n"
+                        f"• *कुल टर्न-की लागत*: *₹{pu_cost:,}* (18mm मरीन प्लाई, हेटिच फिटिंग्स, 4-कोट PU फिनिश, कुशल लेबर और ट्रांसपोर्ट सहित)।\n"
+                        f"• *निर्माण समय*: {quote['timeline']}.\n\n"
+                        f"PU में हम मैट (Matte), सैटिन (Satin) अथवा हाई-ग्लॉस (High-Gloss) बना सकते हैं।\n\n"
+                        f"क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* असली PU फिनिश सैंपल दिखाने आपके घर आएं? 📐🪵"
+                    )
+                return (
+                    f"Excellent choice, {name_title}! ✨ PU (Polyurethane) Italian Polish is selected for your *{p_name}* ({dim_str}).\n\n"
+                    f"• *Total Turn-key Cost*: *₹{pu_cost:,}* (Includes 18mm Marine Ply, Hettich German soft-close fittings, 4-coat PU finish, skilled polish labour, and transport/fitting).\n"
+                    f"• *Timeline*: {quote['timeline']}.\n\n"
+                    f"We can execute Matte, Satin, or High-Gloss PU. Shall we arrange a quick measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM* to show you physical PU swatches? 📐🪵"
+                )
+            else:
+                lam_cost = quote.get("total_lam") or quote.get("total") or 120000
+                if lang == "gu":
+                    return (
+                        f"સમજી ગયો, {name_title}! 🪵 1mm એન્ટી-સ્ક્રેચ લેમિનેટ તમારા *{p_name}* ({dim_str}) માટે સિલેક્ટ થઈ ગયું છે.\n\n"
+                        f"• *કુલ ટર્ન-કી કિંમત*: *₹{lam_cost:,}* (18mm IS 710 મરીન પ્લાય, હેટીચ ફિટિંગ્સ, લેમિનેટ, લેબર અને ટ્રાન્સપોર્ટ સહિત).\n"
+                        f"• *બનાવવાનો સમય*: {quote['timeline']}.\n\n"
+                        f"લેમિનેટમાં મેટ, સુએડ (Suede) અને ટેક્ષ્ચર વુડ ગ્રેઇન ઉપલબ્ધ છે.\n\n"
+                        f"શું અમે લેમિનેટ કેટલોગ સાથે આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* માપણી મુલાકાત ગોઠવીએ? 📐✨"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"समझ गया, {name_title}! 🪵 1mm एंटी-स्क्रैच लैमिनेट आपकी *{p_name}* ({dim_str}) के लिए तय हो गया है।\n\n"
+                        f"• *कुल टर्न-की लागत*: *₹{lam_cost:,}* (18mm IS 710 मरीन प्लाई, हेटिच फिटिंग्स, 1mm लैमिनेट, लेबर और ट्रांसपोर्ट सहित)।\n"
+                        f"• *निर्माण समय*: {quote['timeline']}.\n\n"
+                        f"लैमिनेट में मैट, सुएड (Suede) और वुड-ग्रेन टेक्सचर के बहुत शानदार शेड्स उपलब्ध हैं।\n\n"
+                        f"क्या हम शेड कैटलॉग के साथ इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* विज़िट तय करें? 📐✨"
+                    )
+                return (
+                    f"Understood, {name_title}! 🪵 1mm Anti-Scratch Laminate (Merino / Century) is selected for your *{p_name}* ({dim_str}).\n\n"
+                    f"• *Total Turn-key Cost*: *₹{lam_cost:,}* (Includes 18mm BWP Marine Ply, Hettich German soft-close fittings, 1mm laminate, skilled labour, and transport/fitting).\n"
+                    f"• *Timeline*: {quote['timeline']}.\n\n"
+                    f"We have great texture options: Matte, Suede, and Wood-Grain solid patterns.\n\n"
+                    f"Would you like us to bring physical laminate shade cards to your site this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐✨"
+                )
 
         # 5. Customer states a Budget or requests Bargaining / Discount / Negotiation
         has_budget_mention = bool(
@@ -938,72 +1475,126 @@ class CarpenterAgent:
             return generate_bargaining_response(session, session.customer_budget, user_text)
 
         # 6. Customer provided Dimensions & Requirements -> Approximate Budget, Timeline in Days, then Slot Booking
-        is_dimension_input = bool(
-            ("x" in text_lower or "*" in text_lower or "by" in text_lower)
-            or any(w in text_lower for w in ["ft", "feet", "inch", "seater", "king", "queen", "સીટર", "सीटर", "સોફા", "सोफा"])
-            or (session.dimensions and not has_budget_mention)
+        has_current_dimension = bool(
+            ("x" in text_lower or "*" in text_lower or " by " in text_lower)
+            and any(c.isdigit() for c in user_text)
+        ) or any(
+            w in text_lower for w in ["seater", "સીટર", "सीटर", "king size", "queen size", "feet", "inch"]
         )
-        if is_dimension_input and (session.dimensions or any(c.isdigit() for c in user_text)):
-            dim_str = session.dimensions or "your specified scale"
-            p_name = session.project_type or "Custom Furniture"
-            price_est, timeline_est = get_price_and_timeline_estimate(session.project_type, session.dimensions, lang)
 
+        if has_current_dimension:
+            dim_info = parse_dimension_details(session.dimensions, text_lower)
+            quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
+            p_name = session.project_type or "Custom Furniture"
+            dim_str = session.dimensions or f"{int(quote.get('sqft', 80))} sq.ft."
+
+            if quote.get("type") == "cabinet_wardrobe":
+                if lang == "gu":
+                    return (
+                        f"તમારી *{p_name}* ({dim_str}, {int(quote['sqft'])} ચોરસ ફૂટ) ની વિગત મળી ગઈ, {name_title}! 📏\n\n"
+                        f"• *વિકલ્પ A (1mm લેમિનેટ + જર્મન સોફ્ટ-ક્લોઝ)*: *₹{quote['total_lam']:,}* (આશરે ₹{quote['rate_lam']}/ચોરસ ફૂટ)\n"
+                        f"• *વિકલ્પ B (પ્રીમિયમ 4-કોટ PU પોલિશ)*: *₹{quote['total_pu']:,}* (આશરે ₹{quote['rate_pu']}/ચોરસ ફૂટ)\n"
+                        f"• *બનાવવાનો સમય*: *{quote['timeline']}*\n"
+                        f"• *કારીગરી*: 18mm IS 710 BWP વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
+                        f"શું તમારે લેબર અને ટ્રાન્સપોર્ટ સહિતનો વિગતવાર હિસાબ જોવો છે, કે પછી આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી માપણી વિઝિટ ગોઠવીએ? 📐🪵\n\n"
+                        f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/દીવાલના ફોટા મોકલીને પણ ફાઇનલ કરી શકો છો! 📸)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"आपकी *{p_name}* ({dim_str}, {int(quote['sqft'])} स्क्वायर फीट) की जानकारी मिल गई, {name_title}! 📏\n\n"
+                        f"• *विकल्प A (1mm लैमिनेट + जर्मन सॉफ्ट-क्लोज़)*: *₹{quote['total_lam']:,}* (लगभग ₹{quote['rate_lam']}/स्क्वायर फीट)\n"
+                        f"• *विकल्प B (प्रीमियम 4-कोट PU पॉलिश)*: *₹{quote['total_pu']:,}* (लगभग ₹{quote['rate_pu']}/स्क्वायर फीट)\n"
+                        f"• *तैयार होने का समय*: *{quote['timeline']}*\n"
+                        f"• *कारीगरी*: 18mm IS 710 BWP वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स।\n\n"
+                        f"क्या आप लेबर और ट्रांसपोर्ट सहित पूरा हिसाब देखना चाहेंगे, या फिर इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* फ्री लेज़र नाप विज़िट रख लें? 📐🪵\n\n"
+                        f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो और नाप भेजकर तुरंत ऑनलाइन फाइनल कर सकते हैं! 📸)*"
+                    )
+                return (
+                    f"Got your specifications for *{p_name}* ({dim_str}, {int(quote['sqft'])} sq.ft.), {name_title}! 📏\n\n"
+                    f"• *Option A (1mm Anti-Scratch Laminate + Hettich Fittings)*: *₹{quote['total_lam']:,}* (around ₹{quote['rate_lam']}/sq.ft)\n"
+                    f"• *Option B (Premium 4-Coat PU Polish)*: *₹{quote['total_pu']:,}* (around ₹{quote['rate_pu']}/sq.ft)\n"
+                    f"• *Completion Timeline*: *{quote['timeline']}*\n"
+                    f"• *Craftsmanship*: 18mm IS 710 BWP Waterproof Marine Ply with German soft-close fittings.\n\n"
+                    f"Would you like an itemized breakdown including labour & transport, or shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵\n\n"
+                    f"*(Tip: If you're busy or don't have time for a visit, you can simply send photos of your room & wall measurements here in chat for an instant online quote! 📸)*"
+                )
+            else:
+                price_est, timeline_est = get_price_and_timeline_estimate(session.project_type, session.dimensions, lang)
+                if lang == "gu":
+                    return (
+                        f"તમારી *{p_name}* ({dim_str}) ની વિગત મળી ગઈ, {name_title}! 📏\n\n"
+                        f"• *અંદાજિત બજેટ*: {price_est}\n"
+                        f"• *બનાવવાનો સમય*: *{timeline_est}*\n"
+                        f"• *કારીગરી*: પ્રીમિયમ સીઝન્ડ લાકડું / IS 710 મરીન પ્લાય અને જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
+                        f"સચોટ માપ લેવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી લેસર માપણી વિઝિટ રાખી શકીએ? 📐🪵"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"आपकी *{p_name}* ({dim_str}) की जानकारी मिल गई, {name_title}! 📏\n\n"
+                        f"• *अनुमानित बजट*: {price_est}\n"
+                        f"• *तैयार होने का समय*: *{timeline_est}*\n"
+                        f"• *कारीगरी*: प्रीमियम सीजन्ड लकड़ी / IS 710 मरीन प्लाई और जर्मन सॉफ्ट-क्लोज़ फिटिंग्स।\n\n"
+                        f"सटीक नाप लेने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* आपके घर पर फ्री लेज़र मेज़रमेंट विज़िट रख लें? 📐🪵"
+                    )
+                return (
+                    f"Got your specifications for *{p_name}* ({dim_str}), {name_title}! 📏\n\n"
+                    f"• *Approximate Budget Guide*: {price_est}\n"
+                    f"• *Completion Timeline*: *{timeline_est}*\n"
+                    f"• *Craftsmanship*: Premium seasoned timber / IS 710 marine ply with soft-close German fittings.\n\n"
+                    f"To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
+                )
+
+        # Check Windows / Khidkhi inquiry (when dimensions not yet provided)
+        is_window_inquiry = any(w in text_lower for w in ["khidkhi", "khidki", "khidkiya", "khidkiyan", "window", "windows", "bari", "બારી", "बारी", "खिड़की", "खिड़कियां", "खिडकी"])
+        if is_window_inquiry:
+            session.project_type = "Custom Wooden Windows"
             if lang == "gu":
                 return (
-                    f"તમારી *{p_name}* ({dim_str}) ની વિગત મળી ગઈ! 📏\n\n"
-                    f"• *અંદાજિત બજેટ*: {price_est}\n"
-                    f"• *બનાવવાનો સમય*: *{timeline_est}*\n"
-                    f"• *કારીગરી*: પ્રીમિયમ સીઝન્ડ લાકડું / IS 710 મરીન પ્લાય અને જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
-                    f"આખરી કિંમત તમારી ફિનિશિંગ (લેમિનેટ vs એક્રેલિક vs PU) અને હાર્ડવેર પસંદગી પર નક્કી થશે.\n\n"
-                    f"સચોટ માપ લેવા અને 3D ડિઝાઇન સાથે વિગતવાર ક્વોટેશન આપવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* તમારા ઘરે ફ્રી લેસર માપણી વિઝિટ રાખી શકીએ? 📐🪵\n\n"
-                    f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં જ રૂમ/દીવાલના ફોટા અને માપ મોકલીને ઓનલાઇન ક્વોટેશન મેળવી શકો છો! 📸)*"
+                    f"નમસ્તે {name_title}! 🙏 બારી (Wooden Windows) માટે ખૂબ સરસ!\n\n"
+                    f"અમે સીઝન્ડ સીપી સાગવાન (Teak Wood) માં વેધરપ્રૂફ ચોખટ, 5mm ગ્લાસ અને એસએસ મચ્છર જાળી શટર સાથે ટકાઉ બારીઓ બનાવીએ છીએ.\n\n"
+                    f"તમારી બારીઓનું અંદાજિત માપ શું છે (જેમ કે 4x4 ફૂટ કે 5x4 ફૂટ)? 📐\n"
+                    f"અને શું તમારે મચ્છર જાળી વાળો પલ્લો પણ સાથે બનાવવો છે? 🪵✨"
                 )
             elif lang == "hi":
                 return (
-                    f"आपकी *{p_name}* ({dim_str}) की जानकारी मिल गई! 📏\n\n"
-                    f"• *अनुमानित बजट*: {price_est}\n"
-                    f"• *तैयार होने का समय*: *{timeline_est}*\n"
-                    f"• *कारीगरी*: प्रीमियम सीजन्ड लकड़ी / IS 710 मरीन प्लाई और जर्मन सॉफ्ट-क्लोज़ फिटिंग्स।\n\n"
-                    f"अंतिम कीमत आपकी पसंद के फिनिश (लैमिनेट vs एक्रेलिक vs PU) और हार्डवेयर पर निर्भर करेगी।\n\n"
-                    f"सटीक नाप लेने और 3D डिज़ाइन के साथ पक्का कोटेशन देने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* आपके घर पर फ्री लेज़र मेज़रमेंट विज़िट रख लें? 📐🪵\n\n"
-                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो और नाप भेजकर तुरंत ऑनलाइन कोटेशन ले सकते हैं! 📸)*"
+                    f"नमस्ते {name_title}! 🙏 खिड़की (Wooden Windows) के लिए बहुत बढ़िया!\n\n"
+                    f"हम सीजन्ड सीपी सागवान (Teak Wood) या शीशम में वेदरप्रूफ चौखट, 5mm टफन्ड ग्लास और स्टेनलेस स्टील (SS-304) मच्छर जाली वाले पल्लों के साथ मजबूत खिड़कियां बनाते हैं।\n\n"
+                    f"आपकी खिड़कियों का अंदाज़न साइज़ क्या है (जैसे 4x4 फीट या 5x4 फीट)? 📐\n"
+                    f"और क्या आपको जाली वाला पल्ला भी साथ में चाहिए? 🪵✨"
                 )
             return (
-                f"Got your specifications for *{p_name}* ({dim_str})! 📏\n\n"
-                f"• *Approximate Budget Guide*: {price_est}\n"
-                f"• *Completion Timeline*: *{timeline_est}*\n"
-                f"• *Craftsmanship*: Premium seasoned timber / IS 710 marine ply with soft-close German fittings.\n\n"
-                f"The final price is decided based on your choice of finish (Laminate vs Acrylic vs PU) and hardware.\n\n"
-                f"To verify exact site measurements and give you an itemized quotation with 3D design, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵\n\n"
-                f"*(Tip: If you're busy or don't have time for a visit, you can simply send photos of your room & wall measurements here in chat for an instant online quote! 📸)*"
+                f"Namaste {name_title}! 🙏 Great to hear regarding your custom wooden windows!\n\n"
+                f"We craft window frames and sashes in seasoned CP Teak (Sagwan) with 5mm toughened glass and stainless steel (SS-304) insect mesh shutters.\n\n"
+                f"What are the approximate dimensions of your windows (e.g., 4x4 ft or 5x4 ft)? 📐\n"
+                f"And would you also like the mosquito mesh shutter included? 🪵✨"
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
-        if session.project_type:
+        if session.project_type and len(session.history) <= 4:
             p_name = session.project_type
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
             if lang == "gu":
                 return (
-                    f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું! 🪵\n\n"
-                    f"• *અંદાજિત બજેટ*: {price_est}\n"
+                    f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું, {name_title}! 🪵\n\n"
+                    f"• *અંદાજિત બજેટ માર્ગદર્શિકા*: {price_est}\n"
                     f"• *અંદાજિત સમય*: *{timeline_est}*\n\n"
                     f"સચોટ ભાવ આપવા માટે:\n"
                     f"1. તમારી અંદાજિત રૂમ/દીવાલની સાઈઝ અથવા બેઠક માપ શું છે? 📐\n"
-                    f"2. તમારી પસંદગીનું મટિરિયલ કયું છે (ઓરિજિનલ સાગવાન, શીશમ, કે મરીન પ્લાય સાથે લેમિનેટ/PU)?\n\n"
+                    f"2. તમારી પસંદગીનું ફિનિશ કયું છે (ઓરિજિનલ સાગવાન/શીશમ, કે મરીન પ્લાય સાથે લેમિનેટ/PU)?\n\n"
                     f"અથવા જો તમે ઇચ્છો તો અમારી ટીમ સેમ્પલ્સ સાથે રૂબરૂ માપ લેવા આવી શકે છે! 🪚"
                 )
             elif lang == "hi":
                 return (
-                    f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे! 🪵\n\n"
-                    f"• *अनुमानित बजट*: {price_est}\n"
+                    f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे, {name_title}! 🪵\n\n"
+                    f"• *अनुमानित बजट गाइड*: {price_est}\n"
                     f"• *अनुमानित समय*: *{timeline_est}*\n\n"
                     f"सही कीमत तय करने के लिए:\n"
                     f"1. कमरे या दीवार का अंदाज़न साइज़ या सीटिंग साइज़ क्या है? 📐\n"
-                    f"2. आपका पसंदीदा मटेरियल कौन सा है (सागवान, शीशम, या मरीन प्लाई के साथ लैमिनेट/PU)?\n\n"
+                    f"2. आपका पसंदीदा फिनिश कौन सा है (सागवान, शीशम, या मरीन प्लाई के साथ लैमिनेट/PU)?\n\n"
                     f"या चाहें तो हमारी टीम लकड़ी के सैंपल्स के साथ आपके घर आकर नाप ले सकती है! 🪚"
                 )
             return (
-                f"We would love to handcraft your *{p_name}*! 🪵\n\n"
+                f"We would love to handcraft your *{p_name}*, {name_title}! 🪵\n\n"
                 f"• *Approximate Budget Range*: {price_est}\n"
                 f"• *Estimated Timeline*: *{timeline_est}*\n\n"
                 f"To help us estimate the exact price:\n"
@@ -1016,7 +1607,7 @@ class CarpenterAgent:
         if any(w in text_lower for w in ["teak", "sheesham", "ply", "laminate", "material", "wood", "difference", "લાકડું", "સાગવાન", "લાકડા", "लकड़ी", "सागवान"]):
             if lang == "gu":
                 return (
-                    f"ઉત્તમ સવાલ! સાચું લાકડું પસંદ કરવું એ જ સારા ફર્નિચરનું રહસ્ય છે:\n\n"
+                    f"ઉત્તમ સવાલ, {name_title}! સાચું લાકડું પસંદ કરવું એ જ સારા ફર્નિચરનું રહસ્ય છે:\n\n"
                     f"• *સાગવાન (Teak)*: કુદરતી તેલ વાળું લાકડું, 100% ઊધઈ-પ્રૂફ, આજીવન ચાલતા ફર્નિચર અને દરવાજા માટે શ્રેષ્ઠ.\n"
                     f"• *શીશમ (Rosewood)*: વજનદાર, મજબૂત અને ડ્યુઅલ-ટોન કુદરતી રેસા વાળું. ડાઇનિંગ ટેબલ અને સોફા માટે શ્રેષ્ઠ.\n"
                     f"• *IS 710 BWP મરીન પ્લાય*: વોટરપ્રૂફ, કિચન અને કબાટ માટે શ્રેષ્ઠ, 1mm મેટ/એક્રેલિક ફિનિશ સાથે.\n\n"
@@ -1024,14 +1615,14 @@ class CarpenterAgent:
                 )
             elif lang == "hi":
                 return (
-                    f"बहुत अच्छा सवाल! सही लकड़ी चुनना ही मजबूत फर्नीचर का राज़ है:\n\n"
+                    f"बहुत अच्छा सवाल, {name_title}! सही लकड़ी चुनना ही मजबूत फर्नीचर का राज़ है:\n\n"
                     f"• *सागवान (Teak)*: प्राकृतिक तेल से भरपूर, 100% दीमक-रोधी, हमेशा चलने वाले फर्नीचर और दरवाजों के लिए सर्वश्रेष्ठ।\n"
                     f"• *शीशम (Rosewood)*: भारी, मजबूत और शानदार प्राकृतिक रेशों वाला। डाइनिंग और सोफा के लिए उत्तम।\n"
                     f"• *IS 710 BWP मरीन प्लाई*: वाटरप्रूफ, किचन और वार्डरोब के लिए बेस्ट, 1mm मैट/PU फिनिश के साथ।\n\n"
                     f"आप किस तरह का फिनिश पसंद करेंगे — नेचुरल वुड ग्रेन या मॉडर्न मैट? 🪵"
                 )
             return (
-                f"Excellent question! Choosing the right timber is 80% of fine woodworking:\n\n"
+                f"Excellent question, {name_title}! Choosing the right timber is 80% of fine woodworking:\n\n"
                 f"• *Teak (Sagwan)*: High natural oil content, 100% termite proof, ideal for lifetime pieces and doors.\n"
                 f"• *Sheesham*: Hard, dense, with striking dual-tone grain. Perfect for dining sets & sturdy beds.\n"
                 f"• *IS 710 BWP Marine Ply*: Waterproof, best for kitchens & wardrobes, paired with *1mm Matte/PU finish*.\n\n"
@@ -1041,18 +1632,18 @@ class CarpenterAgent:
         # 9. General project advice
         if lang == "gu":
             return (
-                f"હેરિટેજ વુડવર્ક્સ સાથે સંપર્ક કરવા બદલ આભાર! 🪵\n\n"
+                f"નમસ્તે {name_title}! 🙏 હેરિટેજ વુડવર્ક્સમાં આપનું સ્વાગત છે.\n\n"
                 f"અમે સીઝન્ડ સાગવાન લાકડું અને IS 710 વોટરપ્રૂફ મરીન પ્લાય સાથે જર્મન ફિટિંગ્સ વાપરીએ છીએ. દરેક ફર્નિચર 12 થી 18 કામકાજના દિવસોમાં તૈયાર થાય છે.\n\n"
                 f"તમારે તમારા ઘર માટે કયું ફર્નિચર બનાવવું છે, અને અંદાજિત માપ શું છે? 📐"
             )
         elif lang == "hi":
             return (
-                f"हेरिटेज वुडवर्क्स से संपर्क करने के लिए धन्यवाद! 🪵\n\n"
+                f"नमस्ते {name_title}! 🙏 हेरिटेज वुडवर्क्स में आपका स्वागत है।\n\n"
                 f"हम सीजन्ड सागवान लकड़ी और IS 710 वाटरप्रूफ मरीन प्लाई के साथ जर्मन फिटिंग्स इस्तेमाल करते हैं। हर फर्नीचर 12 से 18 कार्य दिवसों में मजबूती से तैयार होता है।\n\n"
                 f"आप अपने घर के लिए क्या बनवाना चाहते हैं, और अंदाज़न साइज़ क्या है? 📐"
             )
         return (
-            f"Thank you for reaching out to Heritage Woodworks! 🪵\n\n"
+            f"Thank you for reaching out to Heritage Woodworks, {name_title}! 🪵\n\n"
             f"We use seasoned timber and IS 710 waterproof marine ply with soft-close German fittings. "
             f"Every piece is crafted with precision mortise & tenon joinery in 12–18 working days.\n\n"
             f"What piece are you looking to create for your home, and what are the approximate room dimensions? 📐"
