@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache/
 .env.local
 node_modules/
+whatsapp-bridge/node_modules/
+whatsapp-bridge/auth_info/
