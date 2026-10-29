@@ -1,13 +1,10 @@
 """Integration tests for AI Carpenter HTTP Webhook Server."""
-import hashlib
-import hmac
 import http.client
 import json
 import threading
 import time
 import unittest
 
-from app.config import config
 from app.web import CarpenterRequestHandler, deduplicator
 import http.server
 
@@ -56,45 +53,17 @@ class TestServerIntegration(unittest.TestCase):
         self.assertEqual(data["status"], "healthy")
         self.assertEqual(data["service"], "AI Carpenter Assistant")
 
-    def test_webhook_handshake_success(self):
-        token = config.WHATSAPP_VERIFY_TOKEN
-        challenge = "test_challenge_12345"
-        path = f"/webhook/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge={challenge}"
-        status, _, body = self._get(path)
-        self.assertEqual(status, 200)
-        self.assertEqual(body.decode(), challenge)
+    def test_whatsapp_web_redirect(self):
+        status, headers, _ = self._get("/whatsapp")
+        self.assertEqual(status, 302)
+        location = dict(headers).get("Location", "")
+        self.assertEqual(location, "https://web.whatsapp.com")
 
-    def test_webhook_handshake_forbidden_wrong_token(self):
-        path = f"/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=WRONG_TOKEN&hub.challenge=test_123"
-        status, _, _ = self._get(path)
-        self.assertEqual(status, 403)
-
-    def test_webhook_post_meta_payload(self):
-        meta_payload = {
-            "object": "whatsapp_business_account",
-            "entry": [{
-                "id": "1001",
-                "changes": [{
-                    "value": {
-                        "messaging_product": "whatsapp",
-                        "contacts": [{"profile": {"name": "Test User"}, "wa_id": "9998887776"}],
-                        "messages": [{
-                            "from": "9998887776",
-                            "id": f"wamid_test_{time.time()}",
-                            "timestamp": str(int(time.time())),
-                            "text": {"body": "Need a solid Sheesham 6-seater dining table"},
-                            "type": "text",
-                        }],
-                    },
-                    "field": "messages",
-                }],
-            }],
-        }
-        status, _, body = self._post("/webhook/whatsapp", meta_payload)
-        self.assertEqual(status, 200)
-        data = json.loads(body.decode())
-        self.assertTrue(data["ok"])
-        self.assertEqual(data["received"], 1)
+    def test_whatsapp_chat_deep_link_redirect(self):
+        status, headers, _ = self._get("/whatsapp/chat/9876543210")
+        self.assertEqual(status, 302)
+        location = dict(headers).get("Location", "")
+        self.assertEqual(location, "https://wa.me/9876543210")
 
     def test_simulator_and_carpenter_pages_served(self):
         status_sim, _, body_sim = self._get("/simulator")
@@ -104,6 +73,19 @@ class TestServerIntegration(unittest.TestCase):
         status_carp, _, body_carp = self._get("/carpenter")
         self.assertEqual(status_carp, 200)
         self.assertIn(b"Workshop Console", body_carp)
+
+    def test_simulate_endpoint(self):
+        payload = {
+            "from": "9998887776",
+            "text": "Need a solid Sheesham 6-seater dining table",
+            "name": "Test User",
+            "id": f"sim_test_{time.time()}",
+        }
+        status, _, body = self._post("/api/simulate", payload)
+        self.assertEqual(status, 200)
+        data = json.loads(body.decode())
+        self.assertTrue(data["ok"])
+        self.assertIn("reply", data)
 
 
 if __name__ == "__main__":

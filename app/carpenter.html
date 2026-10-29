@@ -427,8 +427,9 @@
     </div>
     <div class="header-actions">
       <span id="backend-status" class="btn" style="border-color: #22c55e; color: #4ade80;">● Agent Ready</span>
+      <a href="/whatsapp" target="_blank" class="btn btn-primary">💬 Open WhatsApp Web ↗</a>
       <button class="btn" onclick="fetchData()">🔄 Refresh</button>
-      <a href="/simulator" class="btn btn-primary">📱 Open WhatsApp Simulator ↗</a>
+      <a href="/simulator" class="btn">📱 Open WhatsApp Simulator ↗</a>
     </div>
   </header>
 
@@ -522,6 +523,7 @@
       <div class="manual-reply-box">
         <input type="text" id="manual-reply-input" placeholder="Type a manual override message from Master Rajesh..." onkeydown="if(event.key==='Enter') sendManualReply()">
         <button class="btn btn-primary" onclick="sendManualReply()">Send As Rajesh 🪚</button>
+        <button class="btn" style="background:#25d366; color:#064e3b; border:none; font-weight:700;" onclick="openWhatsAppChat()" title="Open a real WhatsApp chat with your number">💬 WhatsApp</button>
       </div>
     </div>
 
@@ -535,7 +537,7 @@
         <div class="log-entry">
           <span class="log-time">00:00:00</span>
           <span class="log-cat">SYSTEM</span>
-          <div class="log-msg">Listening on /webhook/whatsapp and /simulator...</div>
+          <div class="log-msg">Listening on /simulator and /carpenter...</div>
         </div>
       </div>
     </div>
@@ -671,6 +673,31 @@
       feed.scrollTop = feed.scrollHeight;
     }
 
+    function getMyWhatsAppNumber() {
+      const raw = (localStorage.getItem('my_wa_number') || '').trim();
+      if (raw) {
+        return raw.replace(/[^\d]/g, '');
+      }
+      const entered = prompt(
+        "Enter the real WhatsApp number to chat with (with country code, digits only):\nExample: 919876543210"
+      );
+      if (!entered) return '';
+      const clean = entered.replace(/[^\d]/g, '');
+      if (clean) {
+        localStorage.setItem('my_wa_number', clean);
+      }
+      return clean;
+    }
+
+    function openWhatsAppChat() {
+      const phone = getMyWhatsAppNumber();
+      if (!phone) {
+        alert("No WhatsApp number provided.");
+        return;
+      }
+      window.open(`https://wa.me/${phone}`, '_blank');
+    }
+
     async function sendManualReply() {
       if (!currentPhone) {
         alert("Please select a customer first.");
@@ -681,6 +708,7 @@
       if (!text) return;
       input.value = '';
 
+      // Record the manual reply in the session transcript
       try {
         const resp = await fetch('/api/manual_reply', {
           method: 'POST',
@@ -695,6 +723,13 @@
         }
       } catch (err) {
         alert("Request error: " + err.message);
+      }
+
+      // Open WhatsApp Web with the message pre-filled so it can be delivered
+      const recipient = getMyWhatsAppNumber();
+      if (recipient) {
+        const encoded = encodeURIComponent(text);
+        window.open(`https://wa.me/${recipient}?text=${encoded}`, '_blank');
       }
     }
 

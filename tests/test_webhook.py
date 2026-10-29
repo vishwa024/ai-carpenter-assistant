@@ -1,11 +1,9 @@
 """Comprehensive unit and integration tests for AI Carpenter Assistant.
 
 Tests:
-1. Meta Webhook Handshake Verification (GET /webhook/whatsapp)
-2. HMAC SHA-256 Payload Signature Verification
-3. Message Deduplication (preventing double-replies)
-4. Carpenter AI Agent Brain (Persona, Multi-turn context, Scope extraction)
-5. Outbound WhatsApp Channel bridge
+1. Message Deduplication (preventing double-replies)
+2. Carpenter AI Agent Brain (Persona, Multi-turn context, Scope extraction)
+3. Outbound WhatsApp Web bridge (wa.me deep links)
 """
 import hashlib
 import hmac
@@ -16,36 +14,6 @@ from app.agent import CarpenterAgent, SessionStore
 from app.config import Config
 from app.web import Deduplicator, verify_hmac_signature
 from app.whatsapp import WhatsAppChannel
-
-
-class TestWebhookSecurityAndHandshake(unittest.TestCase):
-    """Test Meta webhook verification and HMAC security layer."""
-
-    def test_hmac_sha256_verification_valid(self):
-        """Test valid HMAC SHA-256 payload signature."""
-        secret = "super_secret_meta_app_key_123"
-        payload = b'{"object": "whatsapp_business_account"}'
-        signature = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-        header = f"sha256={signature}"
-
-        self.assertTrue(verify_hmac_signature(payload, header, secret))
-
-    def test_hmac_sha256_verification_tampered(self):
-        """Test that tampered payload fails HMAC verification."""
-        secret = "super_secret_meta_app_key_123"
-        payload = b'{"object": "whatsapp_business_account"}'
-        tampered_payload = b'{"object": "whatsapp_business_account", "tampered": true}'
-        signature = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-        header = f"sha256={signature}"
-
-        self.assertFalse(verify_hmac_signature(tampered_payload, header, secret))
-
-    def test_hmac_sha256_invalid_header_format(self):
-        """Test missing prefix or empty header."""
-        secret = "secret123"
-        payload = b'{}'
-        self.assertFalse(verify_hmac_signature(payload, None, secret))
-        self.assertFalse(verify_hmac_signature(payload, "invalid_header", secret))
 
 
 class TestDeduplication(unittest.TestCase):
@@ -198,16 +166,73 @@ class TestCarpenterAgent(unittest.TestCase):
 
 
 class TestWhatsAppChannel(unittest.TestCase):
-    """Test outbound WhatsApp bridge simulation and formatting."""
+    """Test outbound WhatsApp Web bridge and wa.me deep links."""
+
+    def test_web_url(self):
+        channel = WhatsAppChannel()
+        self.assertEqual(channel.get_web_url(), "https://web.whatsapp.com")
+
+    def test_chat_deep_link(self):
+        channel = WhatsAppChannel()
+        self.assertEqual(channel.get_chat_deep_link("9876543210"), "https://wa.me/9876543210")
+        self.assertEqual(channel.get_chat_deep_link("+91 98765 43210"), "https://wa.me/919876543210")
+        self.assertEqual(channel.get_chat_deep_link("919876543210"), "https://wa.me/919876543210")
+
+    def test_chat_deep_link_with_prefill_text(self):
+        """Deep link must URL-encode the pre-filled message text."""
+        channel = WhatsAppChannel()
+        link = channel.get_chat_deep_link("919876543210", prefill_text="Namaste! Your table is ready.")
+        self.assertTrue(link.startswith("https://wa.me/919876543210?text="))
+        # Encoded text must not contain raw spaces or '!'
+        self.assertNotIn(" ", link)
+        self.assertIn("Namaste%21%20Your%20table%20is%20ready.", link)
+        # Round-trip the query string back to the original message
+        import urllib.parse
+
+        parsed = urllib.parse.urlparse(link)
+        self.assertEqual(
+            urllib.parse.parse_qs(parsed.query)["text"][0],
+            "Namaste! Your table is ready.",
+        )
 
     def test_simulation_dispatch(self):
         channel = WhatsAppChannel()
         res = channel.send_message("9876543210", "Namaste! Your appointment is confirmed.")
-        self.assertEqual(res["status"], "simulated")
+        self.assertEqual(res["status"], "whatsapp_web")
+        self.assertIn("deep_link", res)
+        self.assertEqual(res["deep_link"], "https://wa.me/9876543210")
         self.assertEqual(len(channel.outbound_history), 1)
         record = channel.outbound_history[0]
         self.assertEqual(record["recipient_id"], "9876543210")
         self.assertIn("appointment is confirmed", record["message_text"])
+        self.assertEqual(record["channel"], "whatsapp_web")
+
+    def test_gujarati_inquiry_and_reply(self):
+        """Test Gujarati language inquiry produces authentic Gujarati response."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500001"
+        res = agent.process_message(
+            sender_phone=phone,
+            message_text="મને ૬ સીટર ડાઇનિંગ ટેબલ બનાવવું છે, સાગવાન લાકડામાં શું ભાવ થશે?",
+        )
+        # Should detect Gujarati and reply in Gujarati
+        self.assertEqual(res["session"]["language"], "gu")
+        self.assertIn("બજેટ", res["response_text"])
+        self.assertIn("₹38,000", res["response_text"])
+        self.assertIn("શનિવારે", res["response_text"])
+
+    def test_hindi_sofa_inquiry_and_reply(self):
+        """Test Hindi / Hinglish sofa inquiry produces authentic Hindi response."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500002"
+        res = agent.process_message(
+            sender_phone=phone,
+            message_text="मुझे ३ सीटर सोफा बनवाना है, क्या खर्चा आएगा?",
+        )
+        self.assertEqual(res["session"]["language"], "hi")
+        self.assertIn("बजट", res["response_text"])
+        self.assertIn("₹22,000", res["response_text"])
+        self.assertIn("शनिवार", res["response_text"])
 
 
 if __name__ == "__main__":

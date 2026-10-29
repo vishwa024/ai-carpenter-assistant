@@ -1,136 +1,88 @@
-"""WhatsApp Outbound Messaging Bridge.
+"""WhatsApp Web Bridge.
 
-Handles sending outbound messages to customers via Meta WhatsApp Cloud API
-or mock simulated channel when running in local/test mode.
+Provides direct browser access to WhatsApp Web and wa.me deep links
+instead of Meta WhatsApp Cloud API integration.
 """
 from __future__ import annotations
 
-import json
 import logging
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
-import urllib.error
-import urllib.request
 
 from app.config import config
 
 logger = logging.getLogger("carpenter.whatsapp")
 
+WHATSAPP_WEB_URL = "https://web.whatsapp.com"
+
 
 class WhatsAppChannel:
-    """Outbound bridge for WhatsApp Cloud API and simulation dispatch."""
+    """Bridge for WhatsApp Web direct browser access and simulation dispatch."""
 
-    def __init__(
-        self,
-        token: Optional[str] = None,
-        phone_number_id: Optional[str] = None,
-        graph_version: str = "v20.0",
-    ) -> None:
-        self.token = token or config.WHATSAPP_TOKEN
-        self.phone_number_id = phone_number_id or config.WHATSAPP_PHONE_NUMBER_ID
-        self.graph_version = graph_version
+    def __init__(self) -> None:
         # In-memory message store for simulation and dashboard inspection
         self.outbound_history: List[Dict[str, Any]] = []
 
-    @property
-    def api_url(self) -> str:
-        """Meta WhatsApp Cloud API endpoint."""
-        return f"https://graph.facebook.com/{self.graph_version}/{self.phone_number_id}/messages"
+    @staticmethod
+    def get_web_url() -> str:
+        """Return the WhatsApp Web URL for direct browser access."""
+        return WHATSAPP_WEB_URL
 
-    def send_message(self, recipient_id: str, message_text: str) -> Dict[str, Any]:
-        """Send a standard text message to a WhatsApp recipient.
+    @staticmethod
+    def get_chat_deep_link(phone: str, prefill_text: str = "") -> str:
+        """Generate a wa.me deep link to start a WhatsApp chat with a phone number.
 
         Args:
-            recipient_id: Customer phone number in E.164 format without '+' or with digits.
-            message_text: The WhatsApp formatted text response.
+            phone: Phone number in E.164 format (digits only, with country code).
+            prefill_text: Optional message text to pre-fill in the chat box.
 
         Returns:
-            Dict containing the API response status or simulated response.
+            URL string like https://wa.me/919876543210?text=Hello
+        """
+        clean_phone = phone.strip().lstrip("+").replace(" ", "").replace("-", "")
+        base = f"https://wa.me/{clean_phone}"
+        if prefill_text:
+            # Percent-encode the message text for use in a URL query string
+            base += f"?text={urllib.parse.quote(prefill_text, safe='')}"
+        return base
+
+    def send_message(self, recipient_id: str, message_text: str) -> Dict[str, Any]:
+        """Record a simulated outbound message (for dashboard/testing).
+
+        In WhatsApp Web mode, actual sending happens manually in the browser.
+        This method records the intent so the dashboard can show what would be sent.
+
+        Args:
+            recipient_id: Customer phone number.
+            message_text: The message text.
+
+        Returns:
+            Dict containing the simulated response with a wa.me deep link.
         """
         clean_recipient = recipient_id.strip().lstrip("+")
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": clean_recipient,
-            "type": "text",
-            "text": {
-                "preview_url": False,
-                "body": message_text,
-            },
-        }
-
-        # Check if production WhatsApp API credentials are valid
-        can_send_live = bool(
-            config.CHANNEL == "whatsapp"
-            and self.token
-            and self.phone_number_id
-            and self.token != "your_meta_system_user_token"
-            and self.phone_number_id != "your_meta_phone_number_id"
-        )
-
         record: Dict[str, Any] = {
             "timestamp": time.time(),
             "iso_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "recipient_id": clean_recipient,
             "message_text": message_text,
-            "channel": "whatsapp_live" if can_send_live else "simulator",
+            "channel": "whatsapp_web",
+            "deep_link": self.get_chat_deep_link(clean_recipient),
         }
 
-        if not can_send_live:
-            # Local simulation / dry-run mode
-            logger.info(
-                f"[SIMULATOR OUTBOUND] To: {clean_recipient} | Text:\n{message_text}"
-            )
-            simulated_response = {
-                "messaging_product": "whatsapp",
-                "contacts": [{"input": clean_recipient, "wa_id": clean_recipient}],
-                "messages": [{"id": f"wamid.SIMULATED_{int(time.time() * 1000)}"}],
-                "status": "simulated",
-            }
-            record["response"] = simulated_response
-            record["status"] = "delivered_simulated"
-            self.outbound_history.append(record)
-            return simulated_response
+        logger.info(
+            f"[WHATSAPP WEB] To: {clean_recipient} | Open: {record['deep_link']} | Text:\n{message_text}"
+        )
 
-        # Live Meta Graph API POST
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-            "User-Agent": "AI-Carpenter-Assistant/1.0",
+        simulated_response = {
+            "status": "whatsapp_web",
+            "deep_link": record["deep_link"],
+            "message": "Open WhatsApp Web to send this message manually.",
         }
-
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(self.api_url, data=data_bytes, headers=headers, method="POST")
-
-        try:
-            with urllib.request.urlopen(req, timeout=10.0) as resp:
-                resp_body = resp.read().decode("utf-8")
-                resp_json = json.loads(resp_body) if resp_body else {}
-                record["response"] = resp_json
-                record["status"] = "delivered_live"
-                self.outbound_history.append(record)
-                logger.info(f"[META CLOUD API SUCCESS] To: {clean_recipient} | Status: {resp.status}")
-                return resp_json
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8", errors="replace")
-            logger.error(f"[META CLOUD API ERROR] Code: {e.code} | Reason: {e.reason} | Body: {err_body}")
-            error_response = {
-                "error": True,
-                "status_code": e.code,
-                "reason": e.reason,
-                "details": err_body,
-            }
-            record["response"] = error_response
-            record["status"] = "failed"
-            self.outbound_history.append(record)
-            return error_response
-        except Exception as ex:
-            logger.error(f"[META CLOUD API EXCEPTION] {ex}", exc_info=True)
-            ex_response = {"error": True, "details": str(ex)}
-            record["response"] = ex_response
-            record["status"] = "exception"
-            self.outbound_history.append(record)
-            return ex_response
+        record["response"] = simulated_response
+        record["status"] = "ready_for_whatsapp_web"
+        self.outbound_history.append(record)
+        return simulated_response
 
     def get_recent_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieve recent outbound messages for UI inspection."""

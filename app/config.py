@@ -61,11 +61,8 @@ class Config:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-    # Meta WhatsApp Cloud API settings
-    WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
-    WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "carpenter_secret_verify_2026")
-    WHATSAPP_APP_SECRET: str = os.getenv("WHATSAPP_APP_SECRET", "")
+    # WhatsApp Web Direct Access settings
+    WHATSAPP_WEB_URL: str = os.getenv("WHATSAPP_WEB_URL", "https://web.whatsapp.com")
 
     # Workshop Metadata
     WORKSHOP_NAME: str = os.getenv("WORKSHOP_NAME", "Heritage Woodworks & Joinery")
@@ -73,8 +70,8 @@ class Config:
 
     @property
     def is_whatsapp_configured(self) -> bool:
-        """Check if production WhatsApp Cloud API credentials are provided."""
-        return bool(self.WHATSAPP_TOKEN and self.WHATSAPP_PHONE_NUMBER_ID)
+        """WhatsApp Web is always available via browser redirect."""
+        return True
 
     @property
     def is_gemini_configured(self) -> bool:
@@ -83,8 +80,8 @@ class Config:
 
     @property
     def is_app_secret_configured(self) -> bool:
-        """Check if WhatsApp App Secret is set for signature validation."""
-        return bool(self.WHATSAPP_APP_SECRET and self.WHATSAPP_APP_SECRET != "your_meta_app_secret")
+        """App secret is no longer needed for WhatsApp Web direct access."""
+        return False
 
 
 # Singleton instance

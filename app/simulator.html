@@ -485,6 +485,27 @@
       color: #fbbf24;
       border: 1px solid #f59e0b;
     }
+
+    /* "Send to WhatsApp" button that appears inside AI reply bubbles */
+    .wa-send-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      background: #25d366;
+      color: #064e3b;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .wa-send-btn:hover {
+      background: #22c55e;
+    }
   </style>
 </head>
 <body>
@@ -499,9 +520,9 @@
     </div>
     <div class="top-actions">
       <span id="service-status" class="status-tag ok">Connecting...</span>
-      <button class="nav-btn" onclick="testMetaHandshake()">🤝 Test Webhook Handshake</button>
+      <a href="/whatsapp" target="_blank" class="nav-btn primary" style="background:#25d366;color:#064e3b;border:none;">💬 Open WhatsApp Web ↗</a>
       <button class="nav-btn" onclick="testDeduplication()">🔁 Test Deduplication</button>
-      <a href="/carpenter" class="nav-btn primary">🪚 Open Workshop Dashboard →</a>
+      <a href="/carpenter" class="nav-btn">🪚 Open Workshop Dashboard →</a>
     </div>
   </header>
 
@@ -588,18 +609,49 @@
         </div>
       </div>
 
+      <!-- WhatsApp Web Direct Access -->
+      <div class="card">
+        <div class="card-title">
+          <span>💬 WhatsApp Web Direct Access</span>
+          <span style="font-size: 11px; color: #25d366;">No API needed</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <a href="/whatsapp" target="_blank" class="nav-btn primary" style="justify-content:center; padding: 12px; font-size: 14px; background:#25d366; color:#064e3b; border:none; text-decoration:none; border-radius:10px; font-weight:700;">
+            📱 Open WhatsApp Web in Browser ↗
+          </a>
+
+          <label style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+            Customer WhatsApp Number (with country code)
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="tel" id="my-wa-number" placeholder="e.g. 919876543210"
+                   style="flex:1; background:#0f172a; border:1px solid #475569; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13px; outline:none;">
+          </div>
+          <div id="wa-number-preview" style="font-size: 11px; color: #f59e0b; word-break: break-all;">
+            Enter a customer number to generate a chat link
+          </div>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="tool-btn" style="flex:1; background:#25d366; color:#064e3b; border:none; font-weight:700;" onclick="openWhatsAppChat()">💬 Chat on WhatsApp</button>
+            <button class="tool-btn" onclick="copyDeepLink()">📋 Copy Chat Link</button>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+            <strong style="color: #38bdf8;">How it works:</strong><br>
+            1. Type the <strong>customer's real WhatsApp number</strong> above (country code + number, no + or spaces).<br>
+            2. Click <strong style="color: #25d366;">Open WhatsApp Web</strong> in your browser and scan the QR code with your phone.<br>
+            3. Click <strong style="color: #25d366;">Chat on WhatsApp</strong> to open that customer's chat.<br>
+            4. Or click <strong style="color: #25d366;">Send to WhatsApp</strong> on any AI reply to open WhatsApp with Rajesh's message already typed.
+          </div>
+        </div>
+      </div>
+
       <!-- Webhook Payload Inspector -->
       <div class="card">
         <div class="card-title">
-          <span>🔍 Webhook Payload Inspector</span>
-          <div class="meta-tools-row" style="margin: 0;">
-            <label style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-              <input type="checkbox" id="send-as-meta-webhook" checked>
-              Route via Meta Webhook (POST /webhook/whatsapp)
-            </label>
-          </div>
+          <span>🔍 Payload Inspector</span>
+          <span style="font-size: 11px; color: #94a3b8;">Simulator API</span>
         </div>
-        <div class="payload-viewer" id="payload-viewer">// Outbound & Inbound Meta Webhook payloads will be captured here in real-time...</div>
+        <div class="payload-viewer" id="payload-viewer">// Outbound & Inbound payloads will be captured here in real-time...</div>
         <div class="meta-tools-row">
           <button class="tool-btn" onclick="clearConversation()">🧹 Clear Chat & Reset Session</button>
           <button class="tool-btn" onclick="copyPayload()">📋 Copy Last Payload</button>
@@ -637,17 +689,29 @@
       return formatted;
     }
 
+    let lastReplyText = "";
+
     function appendMessage(text, sender, metaInfo = "") {
       const container = document.getElementById('chat-messages');
       const bubble = document.createElement('div');
       bubble.className = `bubble ${sender}`;
 
+      if (sender === 'carpenter') {
+        lastReplyText = text;
+      }
+
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const ticks = sender === 'customer' ? '<span class="ticks">✓✓</span>' : '';
 
+      // For AI replies, add a one-click "push to WhatsApp Web" button
+      const waBtn = (sender === 'carpenter' && text && text !== "")
+        ? `<button class="wa-send-btn" onclick='sendReplyToWhatsApp(${JSON.stringify(text)})'>💬 Send to WhatsApp</button>`
+        : '';
+
       bubble.innerHTML = `
         ${formatWhatsApp(text)}
+        ${waBtn}
         <div class="bubble-meta">
           <span>${timeStr} ${metaInfo ? `• ${metaInfo}` : ''}</span>
           ${ticks}
@@ -655,6 +719,22 @@
       `;
       container.appendChild(bubble);
       container.scrollTop = container.scrollHeight;
+    }
+
+    /**
+     * Push the AI reply into WhatsApp Web with the exact text pre-filled.
+     * Uses the real number typed by the user (recipient), and the message text.
+     */
+    function sendReplyToWhatsApp(replyText) {
+      const phone = getMyWhatsAppNumber();
+      if (!phone) {
+        alert('Please enter the customer\'s WhatsApp number first (country code + number, e.g. 919876543210).');
+        document.getElementById('my-wa-number').focus();
+        return;
+      }
+      // WhatsApp official click-to-chat: pre-fills the message box
+      const encoded = encodeURIComponent(replyText);
+      window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
     }
 
     async function sendMessage() {
@@ -668,85 +748,35 @@
       const typingIndicator = document.getElementById('typing-indicator');
       typingIndicator.style.display = 'flex';
 
-      const useMetaWebhook = document.getElementById('send-as-meta-webhook').checked;
-      const messageId = "wamid.HBgM" + Date.now();
+      const messageId = "sim_" + Date.now();
 
-      if (useMetaWebhook) {
-        // Construct standard Meta WhatsApp Cloud API incoming webhook payload
-        const metaPayload = {
-          object: "whatsapp_business_account",
-          entry: [{
-            id: "WHATSAPP_BUSINESS_ACCOUNT_ID",
-            changes: [{
-              value: {
-                messaging_product: "whatsapp",
-                metadata: {
-                  display_phone_number: "15550234567",
-                  phone_number_id: "WHATSAPP_PHONE_NUMBER_ID"
-                },
-                contacts: [{
-                  profile: { name: currentCustomer.name },
-                  wa_id: currentCustomer.phone
-                }],
-                messages: [{
-                  from: currentCustomer.phone,
-                  id: messageId,
-                  timestamp: Math.floor(Date.now() / 1000).toString(),
-                  text: { body: text },
-                  type: "text"
-                }]
-              },
-              field: "messages"
-            }]
-          }]
-        };
+      // Direct synchronous simulate endpoint
+      const simPayload = {
+        from: currentCustomer.phone,
+        text: text,
+        name: currentCustomer.name,
+        id: messageId
+      };
+      lastPayload = simPayload;
+      document.getElementById('payload-viewer').textContent = JSON.stringify(simPayload, null, 2);
 
-        lastPayload = metaPayload;
-        document.getElementById('payload-viewer').textContent = JSON.stringify(metaPayload, null, 2);
+      try {
+        const resp = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(simPayload)
+        });
+        const resJson = await resp.json();
+        typingIndicator.style.display = 'none';
 
-        try {
-          const resp = await fetch('/webhook/whatsapp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(metaPayload)
-          });
-          const resJson = await resp.json();
-
-          // Poll for reply in background
-          setTimeout(pollLatestReply, 900);
-        } catch (err) {
-          typingIndicator.style.display = 'none';
-          appendMessage("⚠️ Error dispatching webhook: " + err.message, 'carpenter');
+        if (resJson.ok && resJson.reply) {
+          appendMessage(resJson.reply, 'carpenter', `${resJson.latency_ms}ms`);
+        } else {
+          appendMessage("Unable to generate response", 'carpenter');
         }
-      } else {
-        // Direct synchronous simulate endpoint
-        const simPayload = {
-          from: currentCustomer.phone,
-          text: text,
-          name: currentCustomer.name,
-          id: messageId
-        };
-        lastPayload = simPayload;
-        document.getElementById('payload-viewer').textContent = JSON.stringify(simPayload, null, 2);
-
-        try {
-          const resp = await fetch('/api/simulate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(simPayload)
-          });
-          const resJson = await resp.json();
-          typingIndicator.style.display = 'none';
-
-          if (resJson.ok && resJson.reply) {
-            appendMessage(resJson.reply, 'carpenter', `${resJson.latency_ms}ms`);
-          } else {
-            appendMessage("Unable to generate response", 'carpenter');
-          }
-        } catch (err) {
-          typingIndicator.style.display = 'none';
-          appendMessage("⚠️ Connection error: " + err.message, 'carpenter');
-        }
+      } catch (err) {
+        typingIndicator.style.display = 'none';
+        appendMessage("⚠️ Connection error: " + err.message, 'carpenter');
       }
     }
 
@@ -800,21 +830,6 @@
       }
     }
 
-    async function testMetaHandshake() {
-      const testChallenge = "CHALLENGE_" + Math.floor(Math.random() * 90000 + 10000);
-      try {
-        const resp = await fetch(`/webhook/whatsapp?hub.mode=subscribe&hub.challenge=${testChallenge}&hub.verify_token=carpenter_secret_verify_2026`);
-        const challengeReturned = await resp.text();
-        if (resp.status === 200 && challengeReturned === testChallenge) {
-          alert(`✅ Meta Webhook Handshake Successful!\nChallenge Verified: ${challengeReturned}`);
-        } else {
-          alert(`❌ Handshake Failed: Status ${resp.status}\nOutput: ${challengeReturned}`);
-        }
-      } catch (err) {
-        alert(`❌ Handshake request error: ${err.message}`);
-      }
-    }
-
     async function testDeduplication() {
       const dupId = "dup_test_" + Date.now();
       const payload = {
@@ -856,6 +871,65 @@
       navigator.clipboard.writeText(JSON.stringify(lastPayload, null, 2));
       alert("Payload copied to clipboard!");
     }
+
+    function getMyWhatsAppNumber() {
+      const input = document.getElementById('my-wa-number');
+      const raw = (input.value || '').trim();
+      // Normalize: strip +, spaces, dashes, parentheses
+      return raw.replace(/[^\d]/g, '');
+    }
+
+    function updateWaNumberPreview() {
+      const phone = getMyWhatsAppNumber();
+      const preview = document.getElementById('wa-number-preview');
+      if (!phone) {
+        preview.textContent = 'Enter a customer number to generate a chat link';
+        preview.style.color = '#f59e0b';
+        return;
+      }
+      preview.textContent = `https://wa.me/${phone}`;
+      preview.style.color = '#38bdf8';
+    }
+
+    function openWhatsAppChat() {
+      const phone = getMyWhatsAppNumber();
+      if (!phone) {
+        alert('Please enter the customer\'s real WhatsApp number first (country code + number, e.g. 919876543210).');
+        document.getElementById('my-wa-number').focus();
+        return;
+      }
+      window.open(`https://wa.me/${phone}`, '_blank');
+    }
+
+    function copyDeepLink() {
+      const phone = getMyWhatsAppNumber();
+      if (!phone) {
+        alert('Please enter the customer\'s real WhatsApp number first (country code + number, e.g. 919876543210).');
+        document.getElementById('my-wa-number').focus();
+        return;
+      }
+      const link = `https://wa.me/${phone}`;
+      navigator.clipboard.writeText(link);
+      alert(`WhatsApp chat link copied to clipboard!\n${link}`);
+    }
+
+    // Live preview + persist the user's WhatsApp number
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('my-wa-number');
+      const saved = localStorage.getItem('my_wa_number');
+      if (saved) {
+        input.value = saved;
+      }
+      input.addEventListener('input', () => {
+        updateWaNumberPreview();
+        // Only persist a real looking number (10-15 digits)
+        const digits = input.value.replace(/[^\d]/g, '');
+        if (digits.length >= 10) {
+          localStorage.setItem('my_wa_number', digits);
+        }
+      });
+      updateWaNumberPreview();
+    });
 
     // Health check on load
     async function checkHealth() {
