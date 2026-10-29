@@ -87,6 +87,61 @@ class TestServerIntegration(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertIn("reply", data)
 
+    def test_webhook_handshake_success(self):
+        token = "carpenter_secret_verify_2026"
+        challenge = "test_challenge_12345"
+        path = f"/webhook/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge={challenge}"
+        status, _, body = self._get(path)
+        self.assertEqual(status, 200)
+        self.assertEqual(body.decode(), challenge)
+
+    def test_webhook_handshake_failure(self):
+        path = f"/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=WRONG_TOKEN&hub.challenge=test_123"
+        status, _, _ = self._get(path)
+        self.assertEqual(status, 403)
+
+    def test_webhook_post_meta_payload(self):
+        meta_payload = {
+            "object": "whatsapp_business_account",
+            "entry": [
+                {
+                    "id": "1276267114692562",
+                    "changes": [
+                        {
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "15556305153",
+                                    "phone_number_id": "1379832041885393",
+                                },
+                                "contacts": [
+                                    {
+                                        "profile": {"name": "Vishwa"},
+                                        "wa_id": "919876543210",
+                                    }
+                                ],
+                                "messages": [
+                                    {
+                                        "from": "919876543210",
+                                        "id": f"wamid_test_{int(time.time() * 1000)}",
+                                        "timestamp": "1730198400",
+                                        "text": {"body": "Namaste Rajesh ji, I need a custom wooden wardrobe"},
+                                        "type": "text",
+                                    }
+                                ],
+                            },
+                            "field": "messages",
+                        }
+                    ],
+                }
+            ],
+        }
+        status, _, body = self._post("/webhook/whatsapp", meta_payload)
+        self.assertEqual(status, 200)
+        data = json.loads(body.decode())
+        self.assertEqual(data.get("status"), "received")
+        self.assertEqual(data.get("count"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

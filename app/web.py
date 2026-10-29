@@ -213,7 +213,48 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
         query_params = urllib.parse.parse_qs(parsed.query)
 
-        # 1. WhatsApp Web Direct Access Routes
+        # 1. Meta WhatsApp Webhook Handshake Verification
+        if path == "/webhook/whatsapp":
+            mode = query_params.get("hub.mode", [""])[0]
+            verify_token = query_params.get("hub.verify_token", [""])[0]
+            challenge = query_params.get("hub.challenge", [""])[0]
+
+            # If opened directly in browser without Meta handshake query parameters:
+            if not mode and not verify_token:
+                info_html = """<!DOCTYPE html>
+<html>
+<head><title>WhatsApp Webhook Endpoint</title><style>body{font-family:sans-serif;padding:30px;background:#0f172a;color:#f8fafc;line-height:1.6;}a{color:#38bdf8;text-decoration:none;font-weight:bold;}a:hover{text-decoration:underline;}code{background:#1e293b;padding:2px 6px;border-radius:4px;color:#4ade80;}</style></head>
+<body>
+  <h2>🪵 Heritage Woodworks — WhatsApp Webhook Endpoint</h2>
+  <p>This URL (<code>/webhook/whatsapp</code>) is the backend API receiver for Meta WhatsApp Cloud API webhooks.</p>
+  <p>Status: <strong>Active & Listening</strong></p>
+  <ul>
+    <li><a href="/simulator">📱 WhatsApp Customer Simulator (/simulator)</a> — Test real-time chats as a customer</li>
+    <li><a href="/carpenter">🪚 Workshop Console & Dashboard (/carpenter)</a> — View live customer leads and audit logs</li>
+  </ul>
+</body>
+</html>"""
+                self._send_text(200, info_html, content_type="text/html")
+                return
+
+            logger.info(
+                f"[WEBHOOK HANDSHAKE] mode={mode} token={verify_token} challenge={challenge[:10]}..."
+            )
+
+            if mode == "subscribe" and verify_token == config.WHATSAPP_VERIFY_TOKEN:
+                audit_logs.log("WEBHOOK_VERIFY", "Meta webhook challenge successfully verified.")
+                # Respond with raw challenge string and 200 OK
+                self._send_text(200, challenge, content_type="text/plain")
+                return
+            else:
+                audit_logs.log(
+                    "WEBHOOK_VERIFY_FAIL",
+                    f"Verification failed. Provided token: {verify_token}, expected: {config.WHATSAPP_VERIFY_TOKEN}",
+                )
+                self._send_text(403, "Verification token mismatch or invalid mode.")
+                return
+
+        # 2. WhatsApp Web Direct Access Routes
         if path == "/whatsapp":
             # Redirect to WhatsApp Web in the browser
             self.send_response(302)
@@ -294,7 +335,114 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "error": "Invalid body"})
             return
 
-        # 1. Simulator Direct API (Synchronous simulation for the web UI)
+        # 1. Meta WhatsApp Webhook Inbound Message Endpoint
+        if path == "/webhook/whatsapp":
+            # HMAC SHA-256 payload authenticity validation
+            sig_header = self.headers.get("X-Hub-Signature-256")
+            if config.is_app_secret_configured:
+                if not verify_hmac_signature(raw_body, sig_header, config.WHATSAPP_APP_SECRET):
+                    logger.warning("[HMAC FAILURE] Signature mismatch on incoming WhatsApp payload")
+                    audit_logs.log("HMAC_FAILED", "Incoming payload failed HMAC SHA-256 verification")
+                    self._send_json(403, {"ok": False, "error": "Invalid signature"})
+                    return
+                else:
+                    audit_logs.log("HMAC_SUCCESS", "Payload signature verified via HMAC SHA-256")
+            else:
+                if sig_header:
+                    audit_logs.log("HMAC_INFO", "X-Hub-Signature-256 received (WHATSAPP_APP_SECRET not set in config)")
+
+            # Parse JSON payload
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            # Extract message details from standard Meta payload or simplified simulator payload
+            messages_to_process: list[Tuple[str, str, Optional[str], Optional[Dict[str, Any]], str]] = []
+
+            if "entry" in payload:
+                # Standard Meta WhatsApp Cloud API Webhook payload
+                for entry in payload.get("entry", []):
+                    for change in entry.get("changes", []):
+                        val = change.get("value", {})
+                        if val.get("messaging_product") != "whatsapp":
+                            continue
+
+                        # Extract contact names if available
+                        contacts_map = {}
+                        for c in val.get("contacts", []):
+                            contacts_map[c.get("wa_id", "")] = c.get("profile", {}).get("name", "Customer")
+
+                        # Process received messages
+                        for msg in val.get("messages", []):
+                            msg_id = msg.get("id", "")
+                            sender = msg.get("from", "")
+                            msg_type = msg.get("type", "text")
+                            customer_name = contacts_map.get(sender, "Customer")
+
+                            text_body = ""
+                            media_info = None
+
+                            if msg_type == "text":
+                                text_body = msg.get("text", {}).get("body", "")
+                            elif msg_type == "image":
+                                img = msg.get("image", {})
+                                text_body = img.get("caption", "[Customer sent a photo]")
+                                media_info = {
+                                    "type": "image",
+                                    "id": img.get("id"),
+                                    "mime_type": img.get("mime_type", "image/jpeg"),
+                                }
+                            elif msg_type == "document":
+                                doc = msg.get("document", {})
+                                text_body = doc.get("caption", f"[Customer sent a document: {doc.get('filename', 'doc')}]")
+                                media_info = {
+                                    "type": "document",
+                                    "id": doc.get("id"),
+                                    "filename": doc.get("filename"),
+                                }
+                            elif msg_type == "interactive":
+                                inter = msg.get("interactive", {})
+                                text_body = (
+                                    inter.get("button_reply", {}).get("title")
+                                    or inter.get("list_reply", {}).get("title")
+                                    or "[Interactive selection]"
+                                )
+                            else:
+                                text_body = f"[{msg_type} message received]"
+
+                            if sender and text_body:
+                                messages_to_process.append((sender, text_body, customer_name, media_info, msg_id))
+
+            elif "messages" in payload or "from" in payload:
+                # Direct/simplified test format
+                phone = str(payload.get("from", "9876543210"))
+                text = payload.get("text", "")
+                name = payload.get("name", "Customer")
+                msg_id = payload.get("id", f"msg_{int(time.time() * 1000)}")
+                messages_to_process.append((phone, text, name, None, msg_id))
+
+            # Immediate 200 OK acknowledgment to Meta
+            self._send_json(200, {"status": "received", "count": len(messages_to_process)})
+
+            # Process valid messages asynchronously in background
+            for sender, text, name, media, msg_id in messages_to_process:
+                if deduplicator.is_duplicate(msg_id):
+                    logger.info(f"[DEDUPLICATED] Ignored repeated message {msg_id}")
+                    continue
+
+                # Launch async processing worker thread
+                worker = threading.Thread(
+                    target=async_process_and_reply,
+                    args=(sender, text, name, media, msg_id),
+                    daemon=True,
+                )
+                worker.start()
+
+            return
+
+        # 2. Simulator Direct API (Synchronous simulation for the web UI)
         if path == "/api/simulate":
             try:
                 payload = json.loads(raw_body.decode("utf-8"))
@@ -391,9 +539,13 @@ def run_server(host: Optional[str] = None, port: Optional[int] = None) -> None:
     safe_print(f"  * Local Web Simulator   : http://{display_host}:{bind_port}/simulator")
     safe_print(f"  * Workshop Dashboard UI : http://{display_host}:{bind_port}/carpenter")
     safe_print(f"  * WhatsApp Web Access   : http://{display_host}:{bind_port}/whatsapp")
+    safe_print(f"  * WhatsApp Webhook URL  : http://{display_host}:{bind_port}/webhook/whatsapp")
     safe_print(f"  * Server Listening on   : {bind_host}:{bind_port}")
     safe_print(f"  * Channel Mode          : {config.CHANNEL.upper()}")
     safe_print(f"  * Gemini Configured     : {config.is_gemini_configured} ({config.GEMINI_MODEL})")
+    safe_print(f"  * WhatsApp API Live     : {config.is_whatsapp_configured}")
+    safe_print(f"  * Webhook Verify Token  : {config.WHATSAPP_VERIFY_TOKEN}")
+    safe_print(f"  * App Secret HMAC Valid : {config.is_app_secret_configured}")
     safe_print("=" * 70)
     safe_print("Tip: Open http://localhost:8000/simulator or http://localhost:8000/carpenter in Chrome!")
     safe_print("Press Ctrl+C to stop the server.")
