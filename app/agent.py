@@ -52,11 +52,21 @@ Your Natural WhatsApp Sales & Bargaining Workflow:
      • Explain material realities (plywood, fittings, teak timber raw cost).
      • Propose practical value-engineering compromises (commercial ply mix, hinged vs sliding, platform bed vs hydraulic).
      • Negotiate a realistic middle-ground offer and suggest a free laser measurement visit.
-4. OFFER MEASUREMENT VISIT:
-   - Guide customer to schedule a free 15-minute on-site laser measurement visit (offering Saturday 11:30 AM or Sunday 4:00 PM).
-5. CONFIRMATION:
-   - When customer confirms slot or address, confirm the booking with full details.
-6. POST-CONFIRMATION COURTESY:
+4. OFFER MEASUREMENT VISIT & CHAT ESTIMATION:
+   - Offer a free 15-minute on-site laser measurement visit (Saturday 11:30 AM or Sunday 4:00 PM).
+   - Also let the customer know that if they are busy or don't have time for a visit, they can confirm right in chat by sharing room photos and rough measurements!
+5. CHAT CONFIRMATION (WHEN CUSTOMER DOESN'T HAVE TIME OR CANNOT VISIT):
+   - If customer says they don't have time, are busy, cannot meet in person, or prefer chat:
+     • Reassure them that we can finalize everything right in chat without an in-person visit!
+     • Ask for 4 essentials:
+       1. 📸 Clear room / wall photos or a video showing the space (checking skirting, electrical points, ceiling height).
+       2. 📏 Rough tape measurements (length × width or height in feet/inches).
+       3. 🖼️ Reference photo/Pinterest idea of the design they want made.
+       4. 🪵 Preferred material (Solid Teak/Sheesham vs Marine Ply with Laminate/PU polish).
+     • Promise to review their photos and send a firm itemized quote and 3D drawing directly in the chat!
+6. CONFIRMATION:
+   - When customer confirms slot/address OR shares their room photos for chat confirmation, confirm the booking with full details.
+7. POST-CONFIRMATION COURTESY:
    - If customer replies "ok", "thank you", "dhanyawad", or "aabhar" after confirmation, warmly thank them and close politely. NEVER re-prompt for time booking once confirmed!
 
 Formatting: Concise for mobile WhatsApp, *bold* highlights, bullet points (•), and tasteful craft emojis (🪵, 🪚, 📐, ✨).
@@ -435,6 +445,7 @@ class CustomerSession:
     negotiation_stage: str = "none"  # "none", "bargaining", "compromise_offered", "accepted"
     appointment_status: str = "none"  # "none", "requested", "confirmed"
     appointment_slot: Optional[str] = None
+    consultation_mode: str = "in_person"  # "in_person" or "virtual"
     notes: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -525,7 +536,7 @@ class CarpenterAgent:
             session.project_type = "Solid Wood Dining Table"
         elif any(w in text_lower for w in ["door", "entrance door", "chaukhat", "carving door", "darwaza", "darwaja", "darwajo", "દરવાજો", "દરવાજા", "ચોખટ", "दरवाज़ा", "दरवाजा", "चौखट"]):
             session.project_type = "Wooden Door & Frame"
-        elif any(w in text_lower for w in ["bed", "storage bed", "hydraulic", "palang", "khat", "khatiya", "પલંગ", "ખાટલો", "पलंग", "खाट"]):
+        elif any(w in words for w in ["bed", "palang", "khat", "khatiya", "પલંગ", "ખાટલો", "पलंग", "खाट"]) or any(k in text_lower for k in ["storage bed", "hydraulic bed", "king bed", "queen bed", "bed with storage"]):
             session.project_type = "Custom Storage Bed"
         elif any(w in text_lower for w in ["tv unit", "console", "media unit", "ટીવી", "ટીવી યુનિટ", "टीवी यूनिट", "टीवी"]):
             session.project_type = "TV Entertainment Unit"
@@ -618,6 +629,33 @@ class CarpenterAgent:
                         break
                 except ValueError:
                     pass
+
+        # No time / Cannot visit / Prefers chat confirmation detection
+        no_time_keywords = [
+            "no time", "don't have time", "dont have time", "not have time", "busy",
+            "cannot visit", "cant visit", "can't visit", "cannot meet", "cant meet", "can't meet",
+            "not free", "not available", "online only", "in chat", "on chat", "over chat",
+            "send photos", "send pics", "share photos", "share pics", "chat mein batao",
+            "chat ma kaho", "time nathi", "samay nahi", "time nahi",
+            "સમય નથી", "ટાઇમ નથી", "વ્યસ્ત છું", "ચેટમાં કહો", "ચેટ પર", "ચેટમાં જણાવો", "સમય નથી મળતો",
+            "समय नहीं है", "टाइम नहीं है", "व्यस्त हूँ", "विज़िट नहीं हो पाएगी", "चैट पर बताओ", "चैट में बताओ", "ऑनलाइन बताओ"
+        ]
+        if any(nt in text_lower for nt in no_time_keywords):
+            session.consultation_mode = "virtual"
+
+        # Check if customer mentions sharing / sending photos
+        photos_shared_keywords = [
+            "sent photo", "sent photos", "sent pics", "sending photos", "attached photo",
+            "here are photos", "here are the photos", "here is the photo", "here are pics",
+            "here are the pics", "check this picture", "check this photo",
+            "photo bhej diya", "photo bheja", "photo bhej raha", "photo moklya", "photo moklu",
+            "ફોટા મોકલ્યા", "ફોટો મોકલ્યો", "ફોટો મોકલું", "ફોટા મોકલો",
+            "फोटो भेज दिया", "फोटो भेजी", "फोटो भेज दी", "फोटो भेजा"
+        ]
+        if bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(ps in text_lower for ps in photos_shared_keywords):
+            session.consultation_mode = "virtual"
+            if "customer_shared_photos" not in session.notes:
+                session.notes.append("customer_shared_photos")
 
         # Check if previous agent turn offered a measurement visit
         prev_agent_offered_visit = False
@@ -722,6 +760,79 @@ class CarpenterAgent:
             return (
                 f"You're very welcome! 🙏 Everything is set for your laser measurement visit on *{slot_str}*.\n\n"
                 f"Feel free to share any photo references or design ideas here anytime before we arrive. Looking forward to meeting you! 🪵✨"
+            )
+
+        # 1b. Customer shared room photos or design pictures
+        has_sent_photos = "customer_shared_photos" in session.notes or bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(
+            ps in text_lower for ps in [
+                "sent photo", "sent photos", "sent pics", "photo bhej", "photo mokl",
+                "photos mokl", "photo send", "pics send", "here is photo", "here are the photos", "here is the pic"
+            ]
+        )
+        if has_sent_photos:
+            if lang == "gu":
+                return (
+                    f"ફોટા અને વિગતો મોકલવા બદલ ખૂબ ખૂબ આભાર! 📸✨\n\n"
+                    f"અમારી માસ્ટર કારીગર ટીમ તમારી જગ્યા, સ્કીર્ટિંગ, સ્વિચબોર્ડ અને દરવાજાનું ક્લીયરન્સ ચેક કરી રહી છે.\n\n"
+                    f"આ ફોટાના આધારે અમે આગામી ૨ કલાકમાં તમારા માટે સંપૂર્ણ આઇટમવાઇઝ ક્વોટેશન અને મટિરિયલ વિકલ્પો (સાગવાન/શીશમ vs મરીન પ્લાય + લેમિનેટ) તૈયાર કરીને અહીં ચેટમાં જ મોકલી આપીશું! 🪵📐\n\n"
+                    f"જો આ દરમિયાન કોઈ ચોક્કસ કલર કે ફિનિશ તમારા મનમાં હોય તો જરૂર જણાવશો! 🙏"
+                )
+            elif lang == "hi":
+                return (
+                    f"फोटो और जानकारी भेजने के लिए बहुत-बहुत धन्यवाद! 📸✨\n\n"
+                    f"हमारी मास्टर कारिगर टीम आपकी जगह, स्कर्टिंग, स्विचबोर्ड और दरवाजे का क्लीयरेंस देख रही है।\n\n"
+                    f"इन तस्वीरों के आधार पर हम अगले २ घंटे में आपके लिए पूरा पक्का कोटेशन और मटेरियल विकल्प (सागवान/शीशम vs मरीन प्लाई + लैमिनेट) तैयार करके यहीं चैट पर भेज देंगे! 🪵📐\n\n"
+                    f"अगर कोई खास रंग या फिनिश आपके दिमाग में हो तो ज़रूर बताएं! 🙏"
+                )
+            return (
+                f"Thank you so much for sharing the photos! 📸✨\n\n"
+                f"Our master artisan team is reviewing the space, skirting, electrical boards, and door clearance right now.\n\n"
+                f"Based on your photos, we will prepare a firm itemized quotation, material breakdown (Solid Teak/Sheesham vs BWP Marine Ply with 1mm Laminate/PU), and send it right here in this chat within 2 hours! 🪵📐\n\n"
+                f"If you have any specific color or finish preferences, feel free to share them anytime! 🙏"
+            )
+
+        # 1c. Customer has no time to visit / is busy / prefers chat confirmation
+        is_no_time = getattr(session, "consultation_mode", "in_person") == "virtual" or any(
+            nt in text_lower for nt in [
+                "no time", "don't have time", "dont have time", "not have time", "busy",
+                "cannot visit", "cant visit", "can't visit", "cannot meet", "cant meet", "can't meet",
+                "not free", "not available", "in chat", "on chat", "over chat", "online estimate",
+                "confirm in chat", "chat confirmation", "time nathi", "samay nahi", "time nahi",
+                "સમય નથી", "ટાઇમ નથી", "વ્યસ્ત છું", "ચેટમાં કહો", "ચેટ પર", "ચેટમાં જણાવો", "સમય નથી મળતો",
+                "समय नहीं है", "टाइम नहीं है", "व्यस्त हूँ", "विज़िट नहीं हो पाएगी", "चैट पर बताओ", "चैट में बताओ", "ऑनलाइन बताओ"
+            ]
+        )
+        if is_no_time:
+            session.consultation_mode = "virtual"
+            p_name = session.project_type or "custom furniture"
+            if lang == "gu":
+                return (
+                    f"બિલકુલ ચિંતા કરશો નહીં! 🙏 અમે સંપૂર્ણ સમજીએ છીએ કે તમારો સમય કીમતી છે. તમારે રૂબરૂ મુલાકાત માટે સમય કાઢવાની બિલકુલ જરૂર નથી — આપણે અહીં ચેટમાં જ તમારા *{p_name}* નું સંપૂર્ણ કામ ફાઇનલ કરી શકીએ છીએ! 📐✨\n\n"
+                    f"સચોટ ક્વોટેશન અને 3D ડિઝાઇન તૈયાર કરવા માટે, કૃપા કરીને અહીં ચેટમાં આ ૪ વિગતો મોકલી આપો:\n"
+                    f"1. 📸 *જગ્યા / દીવાલના ફોટા*: જ્યાં ફર્નિચર બનાવવું છે તેના ૨–૩ સ્પષ્ટ ફોટા અથવા નાનો વિડીયો (જેથી અમે સ્વિચબોર્ડ, સ્કીર્ટિંગ અને દરવાજાનું માપ સમજી શકીએ).\n"
+                    f"2. 📏 *અંદાજિત માપ*: દીવાલ કે જગ્યાની લંબાઈ અને ઊંચાઈ (ફૂટ અથવા ઈંચમાં).\n"
+                    f"3. 🖼️ *ડિઝાઇન રેફરન્સ*: તમારી પસંદગીનો કોઈ ફોટો, સ્કેચ કે Pinterest ડિઝાઇન જે તમે બનાવવા માંગો છો.\n"
+                    f"4. 🪵 *પસંદગીનું મટિરિયલ*: ઓરિજિનલ સાગ/શીશમ લાકડું કે વોટરપ્રૂફ મરીન પ્લાય સાથે લેમિનેટ/PU પોલિશ.\n\n"
+                    f"તમે આ ફોટા મોકલશો એટલે અમારી કારીગર ટીમ તરત જ ચેક કરીને પાક્કો હિસાબ અને પ્લાન અહીં જ મોકલી આપશે! 🪚✨"
+                )
+            elif lang == "hi":
+                return (
+                    f"बिल्कुल कोई बात नहीं! 🙏 हम समझते हैं कि आपका समय कीमती है। आपको विज़िट के लिए समय निकालने की ज़रूरत नहीं है — हम यहीं चैट पर ही आपके *{p_name}* का पूरा काम और कोटेशन तय कर सकते हैं! 📐✨\n\n"
+                    f"पक्का कोटेशन और 3D डिज़ाइन बनाने के लिए, कृपया चैट में ये ४ चीजें भेज दीजिए:\n"
+                    f"1. 📸 *कमरे / दीवार की फोटो*: जहाँ फर्नीचर बनना है, उस जगह की २–३ साफ फोटो या छोटा वीडियो (ताकि हम स्विचबोर्ड, स्कर्टिंग और दरवाज़े का क्लीयरेंस देख सकें)।\n"
+                    f"2. 📏 *अंदाज़न नाप*: जगह की लंबाई और ऊंचाई (फीट या इंच में)।\n"
+                    f"3. 🖼️ *डिज़ाइन रेफरेंस*: आपकी पसंद की कोई फोटो, स्केच या Pinterest डिज़ाइन जो आप बनवाना चाहते हैं।\n"
+                    f"4. 🪵 *पसंदीदा मटेरियल*: सागवान/शीशम लकड़ी या वाटरप्रूफ मरीन प्लाई के साथ लैमिनेट/PU पॉलिश।\n\n"
+                    f"जैसे ही आप फोटो भेजेंगे, हमारी मास्टर कारिगर टीम देखकर आपको पक्का कोटेशन यहीं भेज देगी! 🪚✨"
+                )
+            return (
+                f"No problem at all! 🙏 We completely understand you are busy. You don't need to take time out for an in-person visit — we can finalize 100% of your *{p_name}* quotation right here in this chat! 📐✨\n\n"
+                f"To prepare your exact itemized quote and 3D drawing, please share these 4 details:\n"
+                f"1. 📸 *Room / Wall Photos*: 2–3 clear pictures or a quick video of the space where you want to place the furniture (so we can check skirting, switchboards, and door clearance).\n"
+                f"2. 📏 *Approximate Measurements*: Rough length and height of the wall/floor in feet or inches.\n"
+                f"3. 🖼️ *Design Reference*: Any photo, sketch, or Pinterest idea you have in mind.\n"
+                f"4. 🪵 *Preferred Material*: Solid Teak / Sheesham vs BWP Marine Ply with Laminate/PU polish.\n\n"
+                f"Once you send these photos, our master workshop team will review them and send you a firm price quote right here! 🪚✨"
             )
 
         # 2. Booking confirmed when customer provides a specific day/time slot or address
@@ -844,7 +955,8 @@ class CarpenterAgent:
                     f"• *બનાવવાનો સમય*: *{timeline_est}*\n"
                     f"• *કારીગરી*: પ્રીમિયમ સીઝન્ડ લાકડું / IS 710 મરીન પ્લાય અને જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
                     f"આખરી કિંમત તમારી ફિનિશિંગ (લેમિનેટ vs એક્રેલિક vs PU) અને હાર્ડવેર પસંદગી પર નક્કી થશે.\n\n"
-                    f"સચોટ માપ લેવા અને 3D ડિઝાઇન સાથે વિગતવાર ક્વોટેશન આપવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* તમારા ઘરે ફ્રી લેસર માપણી વિઝિટ રાખી શકીએ? 📐🪵"
+                    f"સચોટ માપ લેવા અને 3D ડિઝાઇન સાથે વિગતવાર ક્વોટેશન આપવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* તમારા ઘરે ફ્રી લેસર માપણી વિઝિટ રાખી શકીએ? 📐🪵\n\n"
+                    f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં જ રૂમ/દીવાલના ફોટા અને માપ મોકલીને ઓનલાઇન ક્વોટેશન મેળવી શકો છો! 📸)*"
                 )
             elif lang == "hi":
                 return (
@@ -853,7 +965,8 @@ class CarpenterAgent:
                     f"• *तैयार होने का समय*: *{timeline_est}*\n"
                     f"• *कारीगरी*: प्रीमियम सीजन्ड लकड़ी / IS 710 मरीन प्लाई और जर्मन सॉफ्ट-क्लोज़ फिटिंग्स।\n\n"
                     f"अंतिम कीमत आपकी पसंद के फिनिश (लैमिनेट vs एक्रेलिक vs PU) और हार्डवेयर पर निर्भर करेगी।\n\n"
-                    f"सटीक नाप लेने और 3D डिज़ाइन के साथ पक्का कोटेशन देने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* आपके घर पर फ्री लेज़र मेज़रमेंट विज़िट रख लें? 📐🪵"
+                    f"सटीक नाप लेने और 3D डिज़ाइन के साथ पक्का कोटेशन देने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* आपके घर पर फ्री लेज़र मेज़रमेंट विज़िट रख लें? 📐🪵\n\n"
+                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो और नाप भेजकर तुरंत ऑनलाइन कोटेशन ले सकते हैं! 📸)*"
                 )
             return (
                 f"Got your specifications for *{p_name}* ({dim_str})! 📏\n\n"
@@ -861,7 +974,8 @@ class CarpenterAgent:
                 f"• *Completion Timeline*: *{timeline_est}*\n"
                 f"• *Craftsmanship*: Premium seasoned timber / IS 710 marine ply with soft-close German fittings.\n\n"
                 f"The final price is decided based on your choice of finish (Laminate vs Acrylic vs PU) and hardware.\n\n"
-                f"To verify exact site measurements and give you an itemized quotation with 3D design, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
+                f"To verify exact site measurements and give you an itemized quotation with 3D design, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵\n\n"
+                f"*(Tip: If you're busy or don't have time for a visit, you can simply send photos of your room & wall measurements here in chat for an instant online quote! 📸)*"
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size

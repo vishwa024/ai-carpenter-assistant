@@ -234,6 +234,38 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("₹22,000", res["response_text"])
         self.assertIn("शनिवार", res["response_text"])
 
+    def test_no_time_chat_confirmation_english(self):
+        """Test customer who has no time for in-person visit gets chat confirmation photo request."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500003"
+        # 1. State project
+        agent.process_message(phone, "We need a fitted wardrobe for master bedroom.")
+        # 2. Customer says they don't have time to visit
+        res = agent.process_message(phone, "I don't have time for a visit this weekend, can we confirm in chat?")
+        self.assertIn("No problem at all", res["response_text"])
+        self.assertIn("Room / Wall Photos", res["response_text"])
+        self.assertIn("Approximate Measurements", res["response_text"])
+        self.assertIn("Design Reference", res["response_text"])
+
+    def test_no_time_chat_confirmation_gujarati(self):
+        """Test Gujarati customer who is busy gets Gujarati chat confirmation photo request."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500004"
+        agent.process_message(phone, "કબાટ બનાવવો છે")
+        res = agent.process_message(phone, "રૂબરૂ મળવાનો સમય નથી, ચેટમાં કહો")
+        self.assertEqual(res["session"]["language"], "gu")
+        self.assertIn("ચિંતા કરશો નહીં", res["response_text"])
+        self.assertIn("દીવાલના ફોટા", res["response_text"])
+        self.assertIn("અંદાજિત માપ", res["response_text"])
+
+    def test_customer_shared_photos_acknowledgment(self):
+        """Test customer sharing photos gets craftsman photo review acknowledgment."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500005"
+        res = agent.process_message(phone, "I have sent the photos of my bedroom wall and Pinterest design.")
+        self.assertIn("sharing the photos", res["response_text"].lower())
+        self.assertIn("itemized quotation", res["response_text"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()
