@@ -356,6 +356,47 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("95,000", res["response_text"])
         self.assertIn("38,000", res["response_text"])
 
+    def test_visit_acceptance_haa_aa_jaiye_and_no_others_ji(self):
+        """Verify that 'Haa aa jaiye' accepts site visit offer, locks Saturday slot, asks for address,
+        and never addresses the user as 'others ji' or sends generic sofa quote template."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500099"
+
+        # Turn 1: Customer asks about sofa, with WhatsApp pushName set to 'others'
+        r1 = agent.process_message(phone, "sofa banana hai", customer_name="others")
+        self.assertNotIn("others ji", r1["response_text"].lower())
+        self.assertNotIn("others", r1["response_text"].lower())
+        self.assertIn("Custom Wooden Sofa", r1["response_text"])
+
+        # Turn 2: Customer selects PU finish
+        r2 = agent.process_message(phone, "PU finish", customer_name="others")
+        self.assertNotIn("others ji", r2["response_text"].lower())
+        self.assertIn("शनिवार सुबह 11:30 बजे", r2["response_text"])
+        self.assertIn("रविवार शाम 4:00 बजे", r2["response_text"])
+
+        # Turn 3: Customer agrees to visit: "Haa aa jaiye"
+        r3 = agent.process_message(phone, "Haa aa jaiye", customer_name="others")
+        self.assertNotIn("others ji", r3["response_text"].lower())
+        self.assertNotIn("others", r3["response_text"].lower())
+        # Must confirm Saturday 11:30 AM and ask for complete address & landmark
+        self.assertIn("शनिवार सुबह 11:30 बजे", r3["response_text"])
+        self.assertIn("पता", r3["response_text"])
+        self.assertIn("लैंडमार्क", r3["response_text"])
+        # Must NOT repeat the generic budget template or ask for room dimensions again
+        self.assertNotIn("अनुमानित बजट गाइड", r3["response_text"])
+        self.assertNotIn("कमरे या दीवार का अंदाज़न साइज़ क्या है", r3["response_text"])
+
+        # Turn 4: Customer shares address: "Flat 402, Sosyo Circle"
+        r4 = agent.process_message(phone, "Flat 402, Sosyo Circle", customer_name="others")
+        self.assertIn("बुकिंग पक्की हो गई", r4["response_text"])
+        self.assertIn("Flat 402, Sosyo Circle", r4["response_text"])
+        self.assertIn("30 मिनट", r4["response_text"])
+
+        # Turn 5: Customer courtesy close: "Theek hai"
+        r5 = agent.process_message(phone, "Theek hai", customer_name="others")
+        self.assertIn("धन्यवाद", r5["response_text"])
+        self.assertNotIn("अनुमानित बजट गाइड", r5["response_text"])
+
 
 if __name__ == "__main__":
     unittest.main()

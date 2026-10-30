@@ -978,14 +978,16 @@ class CarpenterAgent:
         scheduling_keywords = {
             "visit", "measurement", "measurements", "appointment", "book", "booking",
             "schedule", "sechudel", "schedul", "skedule", "meeting", "meet", "come", "slot", "slots",
-            "મુલાકાત", "માપણી", "માપ", "બુક", "વિઝિટ", "આવો", "આવજો",
-            "मुलाकात", "विज़िट", "नाप", "बुक", "आओ", "आ जाइए"
+            "aao", "aaiye", "aajao", "aajaiye", "aavo", "aavjo", "ghar", "ghare", "home",
+            "મુલાકાત", "માપણી", "માપ", "બુક", "વિઝિટ", "આવો", "આવજો", "ઘરે",
+            "मुलाकात", "विज़िट", "नाप", "बुक", "आओ", "आ जाइए", "आइए", "घर"
         }
         affirmative_words = {
             "yes", "yeah", "yep", "sure", "ok", "okay", "yup", "done", "please", "pls",
-            "confirm", "go ahead", "why not", "sounds good", "perfect",
-            "હા", "હાજી", "ચાલશે", "બરાબર", "પાક્કું",
-            "हाँ", "हां", "हाँजी", "ठीक है", "चलेगा", "पक्का", "ज़रूर"
+            "confirm", "confirmed", "go ahead", "why not", "sounds good", "perfect",
+            "haa", "ha", "haan", "han", "hnn", "theek", "achha", "bilkul", "avashya",
+            "હા", "હાજી", "ચાલશે", "બરાબર", "પાક્કું", "ચોક્કસ",
+            "हाँ", "हां", "हाँजी", "ठीक है", "चलेगा", "पक्का", "ज़रूर", "अवश्य"
         }
 
         # Budget detection (e.g. "my budget is 15000 Rs", "15k", "budget 20000", "can do in 18k", "max 25000")
@@ -1045,18 +1047,39 @@ class CarpenterAgent:
         for turn in reversed(session.history[:-1]):
             if turn.get("role") == "model":
                 prev_text = turn.get("text", "").lower()
-                if any(k in prev_text for k in ["visit", "schedule", "measurement", "slot", "workshop", "માપણી", "મુલાકાત", "नाप", "विज़िट"]):
+                if any(k in prev_text for k in [
+                    "visit", "schedule", "measurement", "slot", "workshop", "માપણી", "મુલાકાત", "નાપ", "વિઝિટ",
+                    "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल दिखाने", "विज़िट", "नाप लेने",
+                    "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ બતાવવા", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
+                    "शनिवार", "रविवार", "saturday at", "sunday at", "which slot", "કયો સમય", "कौन सा समय"
+                ]):
                     prev_agent_offered_visit = True
                 break
 
-        has_scheduling_word = bool(words.intersection(scheduling_keywords)) or any(
-            k in text_lower for k in ["site visit", "laser measurement", "come over", "come to", "ઘરે આવો", "રૂબરૂ મળો", "घर आ जाओ", "नाप लेने आओ"]
-        )
-        is_affirming_visit = prev_agent_offered_visit and bool(words.intersection(affirmative_words))
+        affirming_phrases = [
+            "haa aa jaiye", "ha aa jaiye", "haan aa jaiye", "aa jaiye", "aa jao", "aao ji",
+            "aaiye", "aaiye ji", "ghar aa jao", "ghar aao", "ghar aaiye", "ghar aa jaiye",
+            "ha aavo", "haa aavo", "aavo ji", "aavjo", "aavo", "ghare aavo", "ghare aavjo",
+            "haa chalega", "ha chalega", "haan chalega", "chalega ji", "chalega", "chalse", "chalshe", "chalshe ji",
+            "yes please", "sure come", "come home", "come over", "please come", "come on saturday",
+            "come on sunday", "bhej do", "bhejo", "bhejiye", "aajao", "aajaiye", "ha bhai", "haa bhai",
+            "yes come", "ok come", "okay come", "sure", "done"
+        ]
+        has_affirming_phrase = any(phrase in text_lower for phrase in affirming_phrases)
 
-        if has_scheduling_word or is_affirming_visit:
+        has_scheduling_word = bool(words.intersection(scheduling_keywords)) or any(
+            k in text_lower for k in ["site visit", "laser measurement", "come over", "come to", "ઘરે આવો", "રૂબરૂ મળો", "घर आ जाओ", "नाप लेने आओ", "aa jaiye", "aa jao", "aavo", "aaiye"]
+        )
+        is_affirming_visit = (prev_agent_offered_visit and bool(words.intersection(affirmative_words))) or (prev_agent_offered_visit and has_affirming_phrase)
+
+        if has_scheduling_word or is_affirming_visit or has_affirming_phrase:
             if session.appointment_status == "none":
                 session.appointment_status = "requested"
+            if not session.appointment_slot:
+                if any(w in text_lower for w in ["sunday", "રવિવાર", "रविवार", "4 pm", "સાંજે", "शाम"]):
+                    session.appointment_slot = "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)" if session.language == "gu" else ("रविवार शाम 4:00 बजे (Sunday 4:00 PM)" if session.language == "hi" else "Sunday at 4:00 PM")
+                else:
+                    session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
 
         # Check specific day / time slots
         days_and_slots = [
@@ -1080,18 +1103,52 @@ class CarpenterAgent:
         # Address / Location detection
         address_markers = [
             "flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block",
-            "society", "colony", "layout", "nagar", "house", "સોસાયટી", "નગર", "રોડ", "घर", "सोसायटी"
+            "society", "colony", "layout", "nagar", "bungalow", "villa", "circle", "cross",
+            "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ",
+            "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल"
         ]
-        if any(marker in text_lower for marker in address_markers) or (len(user_text.split()) > 3 and any(c.isdigit() for c in user_text) and not dim_match):
+        has_detected_address = any(marker in text_lower for marker in address_markers) or (
+            session.appointment_status == "requested"
+            and any(c.isdigit() for c in user_text)
+            and not any(k in text_lower for k in [
+                "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
+                "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
+            ])
+        )
+        if has_detected_address:
             session.appointment_status = "confirmed"
             if not session.appointment_slot:
-                session.appointment_slot = "આ વીકએન્ડ (This Weekend)" if session.language == "gu" else ("इस वीकेंड (This Weekend)" if session.language == "hi" else "This Weekend")
+                session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
+            clean_addr = user_text.strip()
+            if not any(n.startswith("address:") for n in session.notes):
+                session.notes.append(f"address: {clean_addr}")
 
     def _generate_fallback_response(self, session: CustomerSession, user_text: str) -> str:
         """Intelligent offline Master Carpenter response generator with multi-turn multilingual state."""
         text_lower = user_text.lower()
         words = set(re.findall(r"\b\w+\b", text_lower))
         lang = getattr(session, "language", "en") or "en"
+
+        # Extract caller name for personal addressing (filter out invalid / placeholder names)
+        caller_name = session.customer_name or ""
+        first_name = ""
+        invalid_names = {
+            "others", "other", "customer", "client", "user", "admin", "contact",
+            "unknown", "test", "demo", "none", "null", "false", "true", "undefined",
+            "whatsapp", "someone", "person", "guest", "friend", "caller", "profile"
+        }
+        if caller_name:
+            raw_first = caller_name.split()[0].strip()
+            clean_n = re.sub(r"[^a-zA-Z\u0900-\u097F\u0A80-\u0AFF]", "", raw_first)
+            if clean_n and len(clean_n) >= 2 and clean_n.lower() not in invalid_names and not clean_n.lower().startswith("client"):
+                first_name = clean_n
+
+        if lang == "gu":
+            name_title = f"{first_name}જી" if first_name else "જી"
+        elif lang == "hi":
+            name_title = f"{first_name} जी" if first_name else "जी"
+        else:
+            name_title = f"{first_name} ji" if first_name else "Ji"
 
         # Check previous turn context
         prev_agent_msg = ""
@@ -1100,36 +1157,70 @@ class CarpenterAgent:
                 prev_agent_msg = turn.get("text", "").lower()
                 break
 
+        visit_offer_keywords = [
+            "visit", "schedule", "measurement", "slot", "workshop", "માપણી", "મુલાકાત", "નાપ", "વિઝિટ",
+            "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल दिखाने", "विज़िट", "नाप लेने",
+            "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ બતાવવા", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
+            "शनिवार", "रविवार", "saturday at", "sunday at", "which slot", "કયો સમય", "कौन सा समय"
+        ]
+        prev_agent_offered_visit = any(k in prev_agent_msg for k in visit_offer_keywords)
+
         scheduling_keywords = {
             "visit", "measurement", "measurements", "appointment", "book", "booking",
             "schedule", "sechudel", "schedul", "skedule", "meeting", "meet", "slot", "slots",
-            "મુલાકાત", "માપણી", "માપ", "બુક", "વિઝિટ", "આવો", "આવજો",
-            "मुलाकात", "विज़िट", "नाप", "बुक", "आओ", "आ जाइए"
+            "aao", "aaiye", "aajao", "aajaiye", "aavo", "aavjo", "ghar", "ghare", "home",
+            "મુલાકાત", "માપણી", "માપ", "બુક", "વિઝિટ", "આવો", "આવજો", "ઘરે",
+            "मुलाकात", "विज़िट", "नाप", "बुक", "आओ", "आ जाइए", "आइए", "घर"
         }
         affirmative_words = {
-            "yes", "yeah", "yep", "sure", "ok", "okay", "yup", "done", "please", "pls", "confirm", "go ahead",
-            "હા", "હાજી", "ચાલશે", "બરાબર", "પાક્કું",
-            "हाँ", "हां", "हाँजी", "ठीक है", "चलेगा", "पक्का", "ज़रूर"
+            "yes", "yeah", "yep", "sure", "ok", "okay", "yup", "done", "please", "pls",
+            "confirm", "confirmed", "go ahead", "why not", "sounds good", "perfect",
+            "haa", "ha", "haan", "han", "hnn", "theek", "achha", "bilkul", "avashya",
+            "હા", "હાજી", "ચાલશે", "બરાબર", "પાક્કું", "ચોક્કસ",
+            "हाँ", "हां", "हाँजी", "ठीक है", "चलेगा", "पक्का", "ज़रूर", "अवश्य"
         }
+        affirming_phrases = [
+            "haa aa jaiye", "ha aa jaiye", "haan aa jaiye", "aa jaiye", "aa jao", "aao ji",
+            "aaiye", "aaiye ji", "ghar aa jao", "ghar aao", "ghar aaiye", "ghar aa jaiye",
+            "ha aavo", "haa aavo", "aavo ji", "aavjo", "aavo", "ghare aavo", "ghare aavjo",
+            "haa chalega", "ha chalega", "haan chalega", "chalega ji", "chalega", "chalse", "chalshe", "chalshe ji",
+            "yes please", "sure come", "come home", "come over", "please come", "come on saturday",
+            "come on sunday", "bhej do", "bhejo", "bhejiye", "aajao", "aajaiye", "ha bhai", "haa bhai",
+            "yes come", "ok come", "okay come", "sure", "done"
+        ]
+        has_affirming_phrase = any(phrase in text_lower for phrase in affirming_phrases)
         courtesy_words = {
             "ok", "okay", "thank", "thanks", "thx", "great", "perfect", "good", "bye", "see", "alright", "done",
-            "આભાર", "ધન્યવાદ", "ધન્યવાદ જી", "સારું",
-            "धन्यवाद", "शुक्रिया", "बहुत अच्छा", "नमस्ते"
+            "theek", "theek hai", "thik", "thik hai", "badiya", "saras", "chalega", "thek",
+            "આભાર", "ધન્યવાદ", "ધન્યવાદ જી", "સારું", "બરાબર",
+            "धन्यवाद", "शुक्रिया", "बहुत अच्छा", "नमस्ते", "ठीक है", "ठीक"
         }
 
         user_is_scheduling = bool(words.intersection(scheduling_keywords)) or any(
-            k in text_lower for k in ["site visit", "come over", "come to", "laser measurement", "ઘરે આવો", "घर आ जाओ"]
+            k in text_lower for k in ["site visit", "come over", "come to", "laser measurement", "ઘરે આવો", "घर आ जाओ", "aa jaiye", "aa jao", "aavo", "aaiye"]
         )
-        user_is_affirming = bool(words.intersection(affirmative_words)) and (
-            "visit" in prev_agent_msg or "schedule" in prev_agent_msg or "measurement" in prev_agent_msg or "માપણી" in prev_agent_msg or "विज़िट" in prev_agent_msg or session.appointment_status == "requested"
+        user_is_affirming = (bool(words.intersection(affirmative_words)) or has_affirming_phrase) and (
+            prev_agent_offered_visit or session.appointment_status == "requested"
         )
         has_time_slot = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am"])
-        address_markers = ["flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block", "society", "colony", "layout", "nagar", "સોસાયટી", "सोसायटी"]
-        has_address = any(marker in text_lower for marker in address_markers)
+        address_markers = [
+            "flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block",
+            "society", "colony", "layout", "nagar", "bungalow", "villa", "circle", "cross",
+            "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ",
+            "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल"
+        ]
+        has_address = any(marker in text_lower for marker in address_markers) or (
+            session.appointment_status == "requested"
+            and any(c.isdigit() for c in user_text)
+            and not any(k in text_lower for k in [
+                "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
+                "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
+            ])
+        )
 
         # 1. Post-Booking Confirmation Courtesy (only when customer is closing after confirmation)
         is_courtesy_close = (
-            (words.intersection(courtesy_words) or "thank you" in text_lower or "thanks" in text_lower or "આભાર" in text_lower or "धन्यवाद" in text_lower)
+            (words.intersection(courtesy_words) or any(c in text_lower for c in ["thank you", "thanks", "theek hai", "thik hai", "theek", "thik", "આભાર", "ધન્યવાદ", "धन्यवाद", "शुक्रिया", "ठीक है"]))
             and not has_time_slot
             and not has_address
             and len(words) <= 4
@@ -1224,77 +1315,108 @@ class CarpenterAgent:
                 f"Once you send these photos, our master workshop team will review them and send you a firm price quote right here! 🪚✨"
             )
 
-        # 2. Booking confirmed when customer provides a specific day/time slot or address
-        if (has_time_slot or has_address) and session.appointment_status in ("requested", "confirmed"):
+        # 2. Booking confirmed when customer provides a specific address or day/time slot with address
+        if has_address:
             session.appointment_status = "confirmed"
-            slot_name = session.appointment_slot or "your selected time"
-            project_name = session.project_type or "custom woodwork"
+            slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
+            project_name = session.project_type or ("કસ્ટમ ફર્નિચર" if lang == "gu" else ("कस्टम फर्नीचर" if lang == "hi" else "custom woodwork"))
+            addr_text = user_text.strip()
             if lang == "gu":
                 return (
-                    f"બુકિંગ કન્ફર્મ થઈ ગયું! 📅✨\n\n"
+                    f"બુકિંગ પાકું થઈ ગયું! 📅✨\n\n"
                     f"• *સમય*: *{slot_name}*\n"
+                    f"• *સરનામું*: *{addr_text}*\n"
                     f"• *કામ*: *{project_name}*\n"
-                    f"• *અમારી ટીમ લાવશે*: લેસર મેઝરમેન્ટ ટેપ અને લાકડાના અસલી સેમ્પલ્સ (સાગવાન, શીશમ, મરીન પ્લાય, PU પોલિશ).\n\n"
+                    f"• *અમારી ટીમ લાવશે*: લેસર મેઝરમેન્ટ ટેપ અને લાકડાના અસલી સેમ્પલ્સ (સાગવાન, શીશમ, મરીન પ્લાય, PU પોલિશ swatches).\n\n"
                     f"અમારી માસ્ટર કારીગર ટીમ આવવાના 30 મિનિટ પહેલાં તમને ફોન કરશે. તમને મળવા માટે ઉત્સુક છીએ! 🙏🪵"
                 )
             elif lang == "hi":
                 return (
-                    f"बुकिंग कन्फर्म हो गई! 📅✨\n\n"
+                    f"बुकिंग पक्की हो गई! 📅✨\n\n"
                     f"• *समय*: *{slot_name}*\n"
+                    f"• *पता*: *{addr_text}*\n"
                     f"• *काम*: *{project_name}*\n"
-                    f"• *हमारी टीम लाएगी*: लेज़र मेज़रमेंट टेप और लकड़ी के असली सैंपल्स (सागवान, शीशम, मरीन प्लाई, PU पॉलिश)।\n\n"
+                    f"• *हमारी टीम लाएगी*: लेज़र मेज़रमेंट टेप और लकड़ी के असली सैंपल्स (सागवान, शीशम, मरीन प्लाई, PU पॉलिश swatches)।\n\n"
                     f"हमारी मास्टर कारिगर टीम पहुंचने से 30 मिनट पहले आपको फोन करेगी। आपसे मिलने की प्रतीक्षा रहेगी! 🙏🪵"
                 )
             return (
                 f"Booking confirmed! 📅✨\n\n"
                 f"• *Appointment*: *{slot_name}*\n"
+                f"• *Location*: *{addr_text}*\n"
                 f"• *Project Scope*: *{project_name}*\n"
                 f"• *What we bring*: Laser measurement tape & physical wood samples (Teak, Sheesham, Marine Ply, PU swatches).\n\n"
                 f"Our master carpenter team will call you 30 minutes before arrival. Looking forward to meeting you! 🙏🪵"
             )
 
-        # 3. Customer agreed to schedule a visit ("yes", "sure", "schedule meeting")
-        if (user_is_scheduling or user_is_affirming) and session.appointment_status != "confirmed":
+        # 3. Customer agreed to schedule a visit or affirmed visit offer ("Haa aa jaiye", "Sure", "Saturday 11:30")
+        if (user_is_scheduling or user_is_affirming or has_affirming_phrase) and session.appointment_status != "confirmed":
             session.appointment_status = "requested"
-            project_context = f"for your *{session.project_type}*" if session.project_type else ""
+            if not session.appointment_slot:
+                if any(w in text_lower for w in ["sunday", "રવિવાર", "रविवार", "4 pm", "સાંજે", "शाम"]):
+                    session.appointment_slot = "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)" if lang == "gu" else ("रविवार शाम 4:00 बजे (Sunday 4:00 PM)" if lang == "hi" else "Sunday at 4:00 PM")
+                else:
+                    session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if lang == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if lang == "hi" else "Saturday at 11:30 AM")
+
+            slot_name = session.appointment_slot
+            project_context = f" ({session.project_type})" if session.project_type else ""
+
             if lang == "gu":
                 return (
-                    f"બહુ સરસ! 📐 હું આનંદથી તમારી સાઇટ પર {project_context} લેસર ટૂલ્સ અને લાકડાના સેમ્પલ્સ સાથે આવીશ.\n\n"
-                    f"અમારી પાસે આ સ્લોટ ખુલ્લા છે:\n"
-                    f"• *શનિવારે સવારે 11:30 વાગ્યે*\n"
-                    f"• *રવિવારે સાંજે 4:00 વાગ્યે*\n\n"
-                    f"તમને કયો સમય અનુકૂળ રહેશે? તમારું સોસાયટી/એપાર્ટમેન્ટનું એડ્રેસ પણ જણાવી દેજો! 🪚✨"
+                    f"બહુ સરસ! અમે આ *{slot_name}* નો સમય તમારા માટે નોંધી લીધો છે. 📅✨\n\n"
+                    f"કૃપા કરીને તમારું પૂરું સરનામું (ફ્લેટ/મકાન નંબર, સોસાયટી/એપાર્ટમેન્ટ) અને નજીકનો લેન્ડમાર્ક જણાવી દેશો જેથી અમારી ટીમ સમયસર પહોંચી શકે. 📍\n\n"
+                    f"(જો રવિવારે સાંજે 4:00 વાગ્યાનો સમય વધુ અનુકૂળ હોય તો એ પણ જણાવી શકો છો.)\n\n"
+                    f"અમારી માસ્ટર કારીગર ટીમ લેસર મેઝરમેન્ટ ટૂલ્સ અને લાકડા/PU ફિનિશના અસલી સેમ્પલ્સ સાથે લાવશે{project_context}! 📐🪵"
                 )
             elif lang == "hi":
                 return (
-                    f"बहुत बढ़िया! 📐 मैं खुशी से आपके घर {project_context} लेज़र टूल्स और लकड़ी के सैंपल्स के साथ आऊंगा।\n\n"
-                    f"हमारे पास ये स्लॉट उपलब्ध हैं:\n"
-                    f"• *शनिवार सुबह 11:30 बजे*\n"
-                    f"• *रविवार शाम 4:00 बजे*\n\n"
-                    f"आपको कौन सा समय ठीक रहेगा? कृपया अपना *अपार्टमेंट/सोसायटी का पता* भी बता दीजिए! 🪚✨"
+                    f"बहुत बढ़िया! हमने इस *{slot_name}* का समय आपके लिए नोट कर लिया है। 📅✨\n\n"
+                    f"कृपया अपना पूरा पता (मकान/फ्लैट नंबर, सोसायटी/अपार्टमेंट) और नज़दीकी लैंडमार्क शेयर कर दीजिए ताकि हमारी टीम समय पर पहुँच सके। 📍\n\n"
+                    f"(अगर रविवार शाम 4:00 बजे का समय ज्यादा सुविधाजनक हो तो वो भी बता सकते हैं।)\n\n"
+                    f"हमारी मास्टर कारिगर टीम लेज़र मेज़रमेंट टूल्स और लकड़ी/PU फिनिश के असली सैंपल्स साथ लाएगी{project_context}! 📐🪵"
                 )
             return (
-                f"Wonderful! 📐 I will gladly visit your site {project_context} with our laser tools and wood samples.\n\n"
-                f"We currently have slots open this:\n"
-                f"• *Saturday at 11:30 AM*\n"
-                f"• *Sunday at 4:00 PM*\n\n"
-                f"Which slot suits you best? Also, please share your *apartment address or landmark* so we can lock it in! 🪚✨"
+                f"Wonderful! We have noted *{slot_name}* for your home visit. 📅✨\n\n"
+                f"Please share your complete address (Flat/House No., Society/Apartment name) and nearest landmark so our team can arrive on time. 📍\n\n"
+                f"(If Sunday at 4:00 PM works better for you, just let us know!)\n\n"
+                f"Our master carpenter team will bring laser measurement tools and physical wood/PU finish swatches{project_context}! 📐🪵"
             )
 
-        # Extract caller name for personal addressing
-        caller_name = session.customer_name or ""
-        first_name = ""
-        if caller_name and not caller_name.lower().startswith("client") and caller_name.lower() != "customer":
-            clean_n = re.sub(r"[^a-zA-Z\u0900-\u097F\u0A80-\u0AFF]", "", caller_name.split()[0])
-            if clean_n and len(clean_n) >= 2:
-                first_name = clean_n
+        # 3b. Follow-up reminder if appointment already requested but address pending
+        if session.appointment_status == "requested" and not has_address:
+            slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
+            if lang == "gu":
+                return (
+                    f"જી! અમે તમારી મુલાકાત માટે *{slot_name}* નો સમય ધ્યાનમાં લીધો છે. 📅✨\n\n"
+                    f"કૃપા કરીને તમારું પૂરું સરનામું (ફ્લેટ/મકાન નંબર, સોસાયટી) અને નજીકનો લેન્ડમાર્ક જણાવી દેશો જેથી અમારી ટીમ સમયસર પહોંચી શકે! 📍"
+                )
+            elif lang == "hi":
+                return (
+                    f"जी! हमने आपकी विज़िट के लिए *{slot_name}* का समय ध्यान में रखा है। 📅✨\n\n"
+                    f"कृपया अपना पूरा पता (मकान/फ्लैट नंबर, सोसायटी/अपार्टमेंट) और नज़दीकी लैंडमार्क शेयर कर दीजिए ताकि हमारी टीम समय पर पहुँच सके! 📍"
+                )
+            return (
+                f"Understood! We have noted *{slot_name}* for your site visit. 📅✨\n\n"
+                f"Please share your complete address (Flat/House No., Society/Apartment name) and nearest landmark so our team can arrive on time! 📍"
+            )
 
-        if lang == "gu":
-            name_title = f"{first_name}ભાઈ" if first_name else "જી"
-        elif lang == "hi":
-            name_title = f"{first_name} जी" if first_name else "जी"
-        else:
-            name_title = f"{first_name} ji" if first_name else "Ji"
+        # 3c. Reassurance if appointment already confirmed
+        if session.appointment_status == "confirmed":
+            slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
+            if lang == "gu":
+                return (
+                    f"જી ચોક્કસ! તમારી વિઝિટ *{slot_name}* માટે પહેલેથી જ કન્ફર્મ છે. 👍\n\n"
+                    f"અમારી ટીમ પહોંચવાના 30 મિનિટ પહેલાં તમને ફોન કરશે. જો કોઈ ડિઝાઇન કે ફોટો હોય તો અહીં મોકલી શકો છો! 🪵✨"
+                )
+            elif lang == "hi":
+                return (
+                    f"जी बिल्कुल! आपकी विज़िट *{slot_name}* के लिए पहले से ही पक्की है। 👍\n\n"
+                    f"हमारी टीम पहुंचने से 30 मिनट पहले आपको कॉल करेगी। अगर कोई डिज़ाइन या फोटो हो तो आप यहां भेज सकते हैं! 🪵✨"
+                )
+            return (
+                f"Yes, certainly! Your visit is confirmed for *{slot_name}*. 👍\n\n"
+                f"Our team will call you 30 minutes before arrival. Feel free to share any photos or design ideas here anytime! 🪵✨"
+            )
+
 
         # 4. Greetings & Initial Discovery
         greetings = {"hi", "hello", "hey", "namaste", "start", "greetings", "kemcho", "kem cho", "કેમ છો", "નમસ્તે", "પ્રણામ", "नमस्ते", "प्रणाम", "राधे राधे", "जय श्री कृष्णा"}
@@ -1689,12 +1811,13 @@ class CarpenterAgent:
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
-        if session.project_type and not session.dimensions:
+        if session.project_type and not session.dimensions and session.appointment_status not in ("requested", "confirmed"):
             p_name = session.project_type
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
             if lang == "gu":
+                name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું, {name_title}! 🪵\n\n"
+                    f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું{name_suffix}! 🪵\n\n"
                     f"• *અંદાજિત બજેટ માર્ગદર્શિકા*: {price_est}\n"
                     f"• *અંદાજિત સમય*: *{timeline_est}*\n\n"
                     f"સચોટ ભાવ આપવા માટે:\n"
@@ -1703,8 +1826,9 @@ class CarpenterAgent:
                     f"અથવા જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાના ફોટા મોકલીને પણ ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸🪚"
                 )
             elif lang == "hi":
+                name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे, {name_title}! 🪵\n\n"
+                    f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे{name_suffix}! 🪵\n\n"
                     f"• *अनुमानित बजट गाइड*: {price_est}\n"
                     f"• *अनुमानित समय*: *{timeline_est}*\n\n"
                     f"सही कीमत तय करने के लिए:\n"
@@ -1712,8 +1836,9 @@ class CarpenterAgent:
                     f"2. आपका पसंदीदा फिनिश कौन सा है (सागवान, शीशम, या मरीन प्लाई के साथ लैमिनेट/PU)?\n\n"
                     f"या अगर आपके पास विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो भेजकर तुरंत ऑनलाइन एस्टिमेट ले सकते हैं! 📸🪚"
                 )
+            name_suffix = f", {first_name}" if first_name else ""
             return (
-                f"We would love to handcraft your *{p_name}*, {name_title}! 🪵\n\n"
+                f"We would love to handcraft your *{p_name}*{name_suffix}! 🪵\n\n"
                 f"• *Approximate Budget Range*: {price_est}\n"
                 f"• *Estimated Timeline*: *{timeline_est}*\n\n"
                 f"To help us estimate the exact price:\n"
@@ -1724,23 +1849,26 @@ class CarpenterAgent:
         # 8. Material inquiry
         if any(w in text_lower for w in ["teak", "sheesham", "ply", "laminate", "material", "wood", "difference", "લાકડું", "સાગવાન", "લાકડા", "लकड़ी", "सागवान"]):
             if lang == "gu":
+                name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"ઉત્તમ સવાલ, {name_title}! સાચું લાકડું પસંદ કરવું એ જ સારા ફર્નિચરનું રહસ્ય છે:\n\n"
+                    f"ઉત્તમ સવાલ{name_suffix}! સાચું લાકડું પસંદ કરવું એ જ સારા ફર્નિચરનું રહસ્ય છે:\n\n"
                     f"• *સાગવાન (Teak)*: કુદરતી તેલ વાળું લાકડું, 100% ઊધઈ-પ્રૂફ, આજીવન ચાલતા ફર્નિચર અને દરવાજા માટે શ્રેષ્ઠ.\n"
                     f"• *શીશમ (Rosewood)*: વજનદાર, મજબૂત અને ડ્યુઅલ-ટોન કુદરતી રેસા વાળું. ડાઇનિંગ ટેબલ અને સોફા માટે શ્રેષ્ઠ.\n"
                     f"• *IS 710 BWP મરીન પ્લાય*: વોટરપ્રૂફ, કિચન અને કબાટ માટે શ્રેષ્ઠ, 1mm મેટ/એક્રેલિક ફિનિશ સાથે.\n\n"
                     f"તમે કેવો લૂક પસંદ કરો છો — કુદરતી લાકડાનો કે મોર્ડન મેટ કલર? 🪵"
                 )
             elif lang == "hi":
+                name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"बहुत अच्छा सवाल, {name_title}! सही लकड़ी चुनना ही मजबूत फर्नीचर का राज़ है:\n\n"
+                    f"बहुत अच्छा सवाल{name_suffix}! सही लकड़ी चुनना ही मजबूत फर्नीचर का राज़ है:\n\n"
                     f"• *सागवान (Teak)*: प्राकृतिक तेल से भरपूर, 100% दीमक-रोधी, हमेशा चलने वाले फर्नीचर और दरवाजों के लिए सर्वश्रेष्ठ।\n"
                     f"• *शीशम (Rosewood)*: भारी, मजबूत और शानदार प्राकृतिक रेशों वाला। डाइनिंग और सोफा के लिए उत्तम।\n"
                     f"• *IS 710 BWP मरीन प्लाई*: वाटरप्रूफ, किचन और वार्डरोब के लिए बेस्ट, 1mm मैट/PU फिनिश के साथ।\n\n"
                     f"आप किस तरह का फिनिश पसंद करेंगे — नेचुरल वुड ग्रेन या मॉडर्न मैट? 🪵"
                 )
+            name_suffix = f", {first_name}" if first_name else ""
             return (
-                f"Excellent question, {name_title}! Choosing the right timber is 80% of fine woodworking:\n\n"
+                f"Excellent question{name_suffix}! Choosing the right timber is 80% of fine woodworking:\n\n"
                 f"• *Teak (Sagwan)*: High natural oil content, 100% termite proof, ideal for lifetime pieces and doors.\n"
                 f"• *Sheesham*: Hard, dense, with striking dual-tone grain. Perfect for dining sets & sturdy beds.\n"
                 f"• *IS 710 BWP Marine Ply*: Waterproof, best for kitchens & wardrobes, paired with *1mm Matte/PU finish*.\n\n"
@@ -1749,19 +1877,22 @@ class CarpenterAgent:
 
         # 9. General project advice
         if lang == "gu":
+            name_suffix = f" {name_title}" if first_name else ""
             return (
-                f"નમસ્તે {name_title}! 🙏 હેરિટેજ વુડવર્ક્સમાં આપનું સ્વાગત છે.\n\n"
+                f"નમસ્તે{name_suffix}! 🙏 હેરિટેજ વુડવર્ક્સમાં આપનું સ્વાગત છે.\n\n"
                 f"અમે સીઝન્ડ સાગવાન લાકડું અને IS 710 વોટરપ્રૂફ મરીન પ્લાય સાથે જર્મન ફિટિંગ્સ વાપરીએ છીએ. દરેક ફર્નિચર 12 થી 18 કામકાજના દિવસોમાં તૈયાર થાય છે.\n\n"
                 f"તમારે તમારા ઘર માટે કયું ફર્નિચર બનાવવું છે, અને અંદાજિત માપ શું છે? 📐"
             )
         elif lang == "hi":
+            name_suffix = f" {name_title}" if first_name else " जी"
             return (
-                f"नमस्ते {name_title}! 🙏 हेरिटेज वुडवर्क्स में आपका स्वागत है।\n\n"
+                f"नमस्ते{name_suffix}! 🙏 हेरिटेज वुडवर्क्स में आपका स्वागत है।\n\n"
                 f"हम सीजन्ड सागवान लकड़ी और IS 710 वाटरप्रूफ मरीन प्लाई के साथ जर्मन फिटिंग्स इस्तेमाल करते हैं। हर फर्नीचर 12 से 18 कार्य दिवसों में मजबूती से तैयार होता है।\n\n"
                 f"आप अपने घर के लिए क्या बनवाना चाहते हैं, और अंदाज़न साइज़ क्या है? 📐"
             )
+        name_suffix = f", {first_name}" if first_name else ""
         return (
-            f"Thank you for reaching out to Heritage Woodworks, {name_title}! 🪵\n\n"
+            f"Thank you for reaching out to Heritage Woodworks{name_suffix}! 🪵\n\n"
             f"We use seasoned timber and IS 710 waterproof marine ply with soft-close German fittings. "
             f"Every piece is crafted with precision mortise & tenon joinery in 12–18 working days.\n\n"
             f"What piece are you looking to create for your home, and what are the approximate room dimensions? 📐"

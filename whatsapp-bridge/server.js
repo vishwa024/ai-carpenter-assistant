@@ -181,6 +181,9 @@ async function startWhatsApp() {
             connectionStatus = 'open';
             currentQR = null;
             connectedNumber = sock.user?.id ? sock.user.id.split(':')[0] : 'Linked Phone';
+            try {
+                sock.sendPresenceUpdate('available');
+            } catch (e) {}
             console.log('\n============================================================');
             console.log(`  [+] WHATSAPP CONNECTED SUCCESSFULLY!`);
             console.log(`  * Account: +${connectedNumber}`);
@@ -204,7 +207,11 @@ async function startWhatsApp() {
             if (remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') continue;
 
             const senderPhone = remoteJid.replace('@s.whatsapp.net', '');
-            const customerName = msg.pushName || 'Customer';
+            let customerName = (msg.pushName || '').trim();
+            const invalidProfileNames = ['others', 'other', 'customer', 'client', 'user', 'admin', 'contact', 'unknown', 'test', 'demo', 'none', 'null', 'undefined'];
+            if (invalidProfileNames.includes(customerName.toLowerCase())) {
+                customerName = '';
+            }
 
             // Extract text body
             const textBody = msg.message.conversation ||
@@ -214,7 +221,7 @@ async function startWhatsApp() {
 
             if (!textBody.trim()) continue;
 
-            console.log(`\n[INCOMING WHATSAPP] From: +${senderPhone} (${customerName}) | Text: "${textBody}"`);
+            console.log(`\n[INCOMING WHATSAPP] From: +${senderPhone} (${customerName || 'Customer'}) | Text: "${textBody}"`);
 
             // 1. Mark incoming message as read
             try {
@@ -222,18 +229,19 @@ async function startWhatsApp() {
             } catch (e) {}
 
             // 2. Start "typing..." (3 dots) presence update on customer's phone
-            // WhatsApp requires presenceSubscribe to route typing events to the other phone
+            // WhatsApp mobile clients require presenceSubscribe + continuous pulse every 800ms
             try {
+                await sock.sendPresenceUpdate('available');
                 await sock.presenceSubscribe(remoteJid);
                 await sock.sendPresenceUpdate('composing', remoteJid);
             } catch (e) {}
 
-            // Continuously pulse the 'composing' presence every 1.2s so the 3 dots stay visible
+            // Continuously pulse the 'composing' presence every 800ms so the 3 dots stay visible
             const typingInterval = setInterval(async () => {
                 try {
                     await sock.sendPresenceUpdate('composing', remoteJid);
                 } catch (e) {}
-            }, 1200);
+            }, 800);
 
             const startComposing = Date.now();
 
