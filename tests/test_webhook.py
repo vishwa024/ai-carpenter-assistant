@@ -330,6 +330,32 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("Booking confirmed", r8["response_text"])
         self.assertIn("Saturday", r8["response_text"])
 
+    def test_cabinate_typo_in_extended_chat(self):
+        """Verify that 'cabinate' typo is recognized in ongoing multi-turn conversations."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500007"
+        agent.process_message(phone, "Hello Rajesh ji", customer_name="Priya")
+        agent.process_message(phone, "How are you?", customer_name="Priya")
+        agent.process_message(phone, "Good to connect", customer_name="Priya")
+        res = agent.process_message(phone, "i want to make cabinate", customer_name="Priya")
+
+        # Must recognize Custom Storage Cabinet and NOT fall back to generic question
+        self.assertEqual(res["session"]["project_type"], "Custom Storage Cabinet")
+        self.assertIn("Custom Storage Cabinet", res["response_text"])
+        self.assertIn("1,200", res["response_text"])
+        self.assertNotIn("What piece are you looking to create", res["response_text"])
+
+    def test_multi_item_inquiry_single_message(self):
+        """Verify that asking for multiple furniture items generates distinct itemized quotes."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500008"
+        res = agent.process_message(phone, "i want wardrobe and dining table", customer_name="Priya")
+
+        self.assertIn("Custom Wardrobe", res["response_text"])
+        self.assertIn("Solid Wood Dining Table", res["response_text"])
+        self.assertIn("95,000", res["response_text"])
+        self.assertIn("38,000", res["response_text"])
+
 
 if __name__ == "__main__":
     unittest.main()

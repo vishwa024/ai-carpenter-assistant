@@ -201,7 +201,7 @@ def get_price_and_timeline_estimate(
             if lang == "gu":
                 price = "₹38,000 – ₹55,000 (ઓરિજિનલ સાગવાન/શીશમ ૬-સીટર ટેબલ ૬ કુશન ખુરશીઓ સાથે)"
             elif lang == "hi":
-                price = "₹38,000 – ₹55,000 (सॉलिड सागवान/शीशम ६-સીટર ટેબલ ६ कुशन कुर्सियों के साथ)"
+                price = "₹38,000 – ₹55,000 (सॉलिड सागवान/शीशम ६-सीटर टेबल ६ कुशन कुर्सियों के साथ)"
             else:
                 price = "₹38,000 – ₹55,000 (Solid Teak/Sheesham 6-seater with 6 cushioned chairs)"
         if lang == "gu":
@@ -230,7 +230,7 @@ def get_price_and_timeline_estimate(
         else:
             price = "₹45,000 – ₹70,000 (King Size with hydraulic storage & cushioned headboard)"
             timeline = "12 to 15 working days"
-    elif "cabinet" in p_type:
+    elif any(k in p_type for k in ["cabinet", "cabinets", "cabinate", "cabinates", "cabinat", "cabenet", "sideboard", "credenza"]):
         if lang == "gu":
             price = "₹1,200 – ₹1,800 પ્રતિ ચોરસ ફૂટ (18mm મરીન પ્લાય + લેમિનેટ/PU પોલિશ)"
             timeline = "12 થી 16 કામકાજના દિવસો વર્કશોપ ફેબ્રિકેશન + 2 દિવસ સાઇટ ફિટિંગ"
@@ -329,7 +329,7 @@ def calculate_turnkey_quote(
     seats = dim_info.get("seats")
 
     # 1. Custom Wardrobe / Cabinet / Storage
-    if any(k in p_type for k in ["cabinet", "wardrobe", "cupboard", "almirah", "almari", "કબાટ", "अलमारी"]):
+    if any(k in p_type for k in ["cabinet", "cabinets", "cabinate", "cabinates", "cabinat", "cabenet", "sideboard", "credenza", "wardrobe", "cupboard", "almirah", "almari", "કબાટ", "अलमारी"]):
         total_sqft = float(sqft * qty)
         rate_lam = 1380
         total_lam = int(round(total_sqft * rate_lam))
@@ -806,27 +806,121 @@ class CarpenterAgent:
         elif getattr(session, "language", "en") == "en":
             session.language = detected_lang
 
-        # Project type detection (Multilingual: Gujarati, Hindi, English)
-        if any(w in text_lower for w in ["sofa", "couch", "setee", "diwan", "સોફા", "સોફો", "सोफा", "बैठक", "दीवान"]):
-            session.project_type = "Custom Wooden Sofa"
-        elif any(w in text_lower for w in ["cabinet", "cabinets"]):
-            session.project_type = "Custom Storage Cabinet"
-        elif any(w in text_lower for w in ["wardrobe", "cupboard", "closet", "almirah", "almari", "kabaat", "kapat", "કબાટ", "अलमारी", "अलमीरा"]):
-            session.project_type = "Custom Wardrobe"
-        elif any(w in text_lower for w in ["kitchen", "modular kitchen", "rasoi", "રસોઈ", "रसोई"]):
-            session.project_type = "Modular Kitchen"
-        elif any(w in text_lower for w in ["window", "windows", "khidki", "khidkhi", "khidkiya", "khidkiyan", "bari", "બારી", "बारी", "खिड़की", "खिड़कियां", "खिडकी"]):
-            session.project_type = "Custom Wooden Windows"
-        elif any(w in text_lower for w in ["dining", "table", "chair", "mej", "ટેબલ", "ડાઇનિંગ", "मेज", "डाइनिंग"]):
-            session.project_type = "Solid Wood Dining Table"
-        elif any(w in text_lower for w in ["door", "entrance door", "chaukhat", "carving door", "darwaza", "darwaja", "darwajo", "દરવાજો", "દરવાજા", "ચોખટ", "दरवाज़ा", "दरवाजा", "चौखट"]):
-            session.project_type = "Wooden Door & Frame"
-        elif any(w in words for w in ["bed", "palang", "khat", "khatiya", "પલંગ", "ખાટલો", "पलंग", "खाट"]) or any(k in text_lower for k in ["storage bed", "hydraulic bed", "king bed", "queen bed", "bed with storage"]):
-            session.project_type = "Custom Storage Bed"
-        elif any(w in text_lower for w in ["tv unit", "console", "media unit", "ટીવી", "ટીવી યુનિટ", "टीवी यूनिट", "टीवी"]):
-            session.project_type = "TV Entertainment Unit"
-        elif any(w in text_lower for w in ["mandir", "pooja", "temple", "devghar", "મંદિર", "પૂજા", "मंदिर", "पूजा"]):
-            session.project_type = "Pooja Mandir"
+        # Project type detection (Multilingual: Gujarati, Hindi, English, and common typos)
+        matched_items: List[str] = []
+
+        # 1. Wardrobe / Cupboard / Almirah
+        if any(w in text_lower for w in [
+            "wardrobe", "wardrobes", "wardrob", "wardroob", "vadrob", "wadrobe", "ward robe",
+            "cupboard", "cupbord", "cubboard", "closet", "almirah", "almari", "kabaat", "kapat",
+            "કબાટ", "अलमारी", "अलमीरा"
+        ]):
+            matched_items.append("Custom Wardrobe")
+
+        # 2. Cabinet / Credenza / Sideboard
+        if any(w in text_lower for w in [
+            "cabinet", "cabinets", "cabinate", "cabinates", "cabinat", "cabenet", "cabenat", "kabinet",
+            "sideboard", "credenza", "crockery unit", "crockery cabinet", "crockery",
+            "storage cabinet", "કેબિનેટ", "कैबिनेट"
+        ]) and "Custom Wardrobe" not in matched_items:
+            matched_items.append("Custom Storage Cabinet")
+
+        # 3. Modular Kitchen
+        if any(w in text_lower for w in [
+            "kitchen", "kitchens", "kichen", "kitcen", "kicthan", "modular kitchen",
+            "rasoi", "રસોઈ", "રંસોઈ", "રંસોઇ", "રંગોઈ", "रसोई", "किचन"
+        ]):
+            matched_items.append("Modular Kitchen")
+
+        # 4. Windows
+        if any(w in text_lower for w in [
+            "window", "windows", "khidki", "khidkhi", "khidaki", "khidkiya", "khidkiyan",
+            "bari", "બારી", "બારીઓ", "बारी", "खिड़की", "खिड़कियां", "खिडकी", "खिडकिया"
+        ]):
+            matched_items.append("Custom Wooden Windows")
+
+        # 5. Dining Table
+        if any(w in text_lower for w in [
+            "dining", "dinning", "dining table", "dinning table", "dinner table", "table",
+            "chair", "mej", "ટેબલ", "ડાઇનિંગ", "मेज", "डाइनिंग", "डाइनिंग टेबल", "ડાઇનિંગ ટેબલ"
+        ]) and not any(k in text_lower for k in ["study table", "dressing table", "coffee table"]):
+            matched_items.append("Solid Wood Dining Table")
+
+        # 6. Wooden Sofa
+        if any(w in text_lower for w in [
+            "sofa", "sofas", "soffa", "couch", "setee", "diwan",
+            "સોફા", "સોફો", "सोफा", "बैठक", "दीवान"
+        ]):
+            matched_items.append("Custom Wooden Sofa")
+
+        # 7. Bed
+        if any(w in words for w in ["bed", "beds", "palang", "khat", "khatiya", "પલંગ", "ખાટલો", "पलंग", "खाट"]) or any(
+            k in text_lower for k in ["storage bed", "hydraulic bed", "king bed", "queen bed", "bed with storage", "box bed"]
+        ):
+            matched_items.append("Custom Storage Bed")
+
+        # 8. Wooden Door & Frame
+        if any(w in text_lower for w in [
+            "door", "doors", "entrance door", "chaukhat", "carving door", "darwaza", "darwaja", "darwajo",
+            "દરવાજો", "દરવાજા", "ચોખટ", "દરવાજાઓ", "दरवाज़ा", "दरवाजा", "चौखट", "दरवाजे"
+        ]):
+            matched_items.append("Wooden Door & Frame")
+
+        # 9. TV Entertainment Unit
+        if any(w in text_lower for w in [
+            "tv unit", "tv cabinet", "tv stand", "tv console", "tv panel", "entertainment unit",
+            "ટીવી", "ટીવી યુનિટ", "टीवी यूनिट", "टीवी"
+        ]):
+            matched_items.append("TV Entertainment Unit")
+
+        # 10. Pooja Mandir
+        if any(w in text_lower for w in [
+            "mandir", "pooja", "pooja mandir", "temple", "devghar", "mandir unit",
+            "મંદિર", "પૂજા", "પૂજા મંદિર", "मंदिर", "पूजा", "पूजा घर", "देवघर"
+        ]):
+            matched_items.append("Pooja Mandir")
+
+        # 11. Study Table / Bookshelf
+        if any(w in text_lower for w in [
+            "bookshelf", "book shelf", "bookcase", "study table", "study desk", "office table",
+            "ચોપડીઓ", "ડેસ્ક", "किताबों की अलमारी", "स्टडी टेबल"
+        ]):
+            matched_items.append("Bookshelf & Study Table")
+
+        # 12. Shoe Cabinet
+        if any(w in text_lower for w in [
+            "shoe rack", "shoe cabinet", "shoes rack", "ચંપલ સ્ટેન્ડ", "जूता स्टैंड", "शू रैक"
+        ]):
+            matched_items.append("Shoe Cabinet")
+
+        # Regex fallback for generic furniture requests (e.g. "i want to make bar cabinet")
+        if not matched_items:
+            intent_match = re.search(
+                r"(?:want to make|want to build|looking to make|looking for|need to make|need|banana hai|banani hai|banwani hai|banwana hai|banavvu che|banavvi che)\s+([a-zA-Z\s]{3,30})",
+                text_lower
+            )
+            if intent_match:
+                extracted = intent_match.group(1).strip()
+                extracted = re.sub(r"\b(?:a|an|the|some|one|two|three|new|custom|wood|wooden)\b", "", extracted).strip()
+                if extracted and len(extracted) >= 3 and not any(ex in extracted for ex in ["appointment", "visit", "measurement", "call"]):
+                    matched_items.append(extracted.title())
+
+        # Update session with matched items
+        dim_in_current_text = bool(
+            re.search(r"(\d+(?:\.\d+)?\s*(?:x|\*|by)\s*\d+)", text_lower)
+            or any(k in text_lower for k in ["seater", "સીટર", "सीटर", "king", "queen", "feet", "ft", "inch"])
+        )
+        if matched_items:
+            if len(matched_items) == 1:
+                new_project = matched_items[0]
+                if session.project_type != new_project:
+                    session.project_type = new_project
+                    if not dim_in_current_text:
+                        session.dimensions = None  # Reset old dimensions when customer asks for a new item!
+            else:
+                session.project_type = " & ".join(matched_items)
+                if not dim_in_current_text:
+                    session.dimensions = None
 
         # Dimensions detection (e.g. 10x8, 10x8 ft, 10*20, 10*20feet, 3 seater, three sofa, 6 seater, 7x3)
         dim_match = re.search(r"(\d+(?:\.\d+)?\s*(?:x|\*|by)\s*\d+(?:\.\d+)?\s*(?:ft|feet|inch|in|m|meter|ફૂટ|ફીટ|फुट|फीट)?)", text_lower)
@@ -1544,9 +1638,34 @@ class CarpenterAgent:
                     f"To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
                 )
 
+        # Multi-Item Inquiry (Customer asked for 2 or more pieces)
+        if session.project_type and " & " in session.project_type:
+            items_list = session.project_type.split(" & ")
+            if lang == "gu":
+                lines = [f"નમસ્તે {name_title}! 🙏 અમે તમારી જરૂરિયાત મુજબ આ બંને વસ્તુઓ ઉત્તમ કારીગરીથી બનાવી આપીશું:\n"]
+                for idx, itm in enumerate(items_list, 1):
+                    pr, tm = get_price_and_timeline_estimate(itm, None, "gu")
+                    lines.append(f"{idx}. *{itm}*:\n   • *અંદાજિત બજેટ*: {pr}\n   • *સમય*: *{tm}*")
+                lines.append(f"\nસચોટ માપ અને કિંમત નક્કી કરવા માટે, શું તમે આ બંનેના અંદાજિત માપ (રૂમ સાઈઝ અથવા બેઠક) જણાવી શકો છો? 📐🪵\n\n*(જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાના ફોટા મોકલીને પણ ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸)*")
+                return "\n".join(lines)
+            elif lang == "hi":
+                lines = [f"नमस्ते {name_title}! 🙏 हमें आपकी पसंद के अनुसार ये दोनों आइटम पूरी मजबूती से बनाने में खुशी होगी:\n"]
+                for idx, itm in enumerate(items_list, 1):
+                    pr, tm = get_price_and_timeline_estimate(itm, None, "hi")
+                    lines.append(f"{idx}. *{itm}*:\n   • *अनुमानित बजट*: {pr}\n   • *समय*: *{tm}*")
+                lines.append(f"\nसटीक कोटेशन बनाने के लिए, क्या आप दोनों का अंदाज़न साइज़ या जगह का नाप बता सकते हैं? 📐🪵\n\n*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो भेजकर तुरंत ऑनलाइन फाइनल कर सकते हैं! 📸)*")
+                return "\n".join(lines)
+            else:
+                lines = [f"Namaste {name_title}! 🙏 We would be delighted to handcraft these bespoke pieces for you:\n"]
+                for idx, itm in enumerate(items_list, 1):
+                    pr, tm = get_price_and_timeline_estimate(itm, None, "en")
+                    lines.append(f"{idx}. *{itm}*:\n   • *Approximate Budget Guide*: {pr}\n   • *Timeline*: *{tm}*")
+                lines.append(f"\nTo calculate your firm turnkey quotation: What are the approximate dimensions or seating requirements for each? 📐🪵\n\n*(Tip: If you don't have time for a visit, you can also share room photos right here in chat for an instant online quote! 📸)*")
+                return "\n".join(lines)
+
         # Check Windows / Khidkhi inquiry (when dimensions not yet provided)
         is_window_inquiry = any(w in text_lower for w in ["khidkhi", "khidki", "khidkiya", "khidkiyan", "window", "windows", "bari", "બારી", "बारी", "खिड़की", "खिड़कियां", "खिडकी"])
-        if is_window_inquiry:
+        if is_window_inquiry and not session.dimensions:
             session.project_type = "Custom Wooden Windows"
             if lang == "gu":
                 return (
@@ -1570,7 +1689,7 @@ class CarpenterAgent:
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
-        if session.project_type and len(session.history) <= 4:
+        if session.project_type and not session.dimensions:
             p_name = session.project_type
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
             if lang == "gu":
@@ -1581,7 +1700,7 @@ class CarpenterAgent:
                     f"સચોટ ભાવ આપવા માટે:\n"
                     f"1. તમારી અંદાજિત રૂમ/દીવાલની સાઈઝ અથવા બેઠક માપ શું છે? 📐\n"
                     f"2. તમારી પસંદગીનું ફિનિશ કયું છે (ઓરિજિનલ સાગવાન/શીશમ, કે મરીન પ્લાય સાથે લેમિનેટ/PU)?\n\n"
-                    f"અથવા જો તમે ઇચ્છો તો અમારી ટીમ સેમ્પલ્સ સાથે રૂબરૂ માપ લેવા આવી શકે છે! 🪚"
+                    f"અથવા જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાના ફોટા મોકલીને પણ ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸🪚"
                 )
             elif lang == "hi":
                 return (
@@ -1591,7 +1710,7 @@ class CarpenterAgent:
                     f"सही कीमत तय करने के लिए:\n"
                     f"1. कमरे या दीवार का अंदाज़न साइज़ या सीटिंग साइज़ क्या है? 📐\n"
                     f"2. आपका पसंदीदा फिनिश कौन सा है (सागवान, शीशम, या मरीन प्लाई के साथ लैमिनेट/PU)?\n\n"
-                    f"या चाहें तो हमारी टीम लकड़ी के सैंपल्स के साथ आपके घर आकर नाप ले सकती है! 🪚"
+                    f"या अगर आपके पास विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो भेजकर तुरंत ऑनलाइन एस्टिमेट ले सकते हैं! 📸🪚"
                 )
             return (
                 f"We would love to handcraft your *{p_name}*, {name_title}! 🪵\n\n"
@@ -1600,9 +1719,8 @@ class CarpenterAgent:
                 f"To help us estimate the exact price:\n"
                 f"1. What are your approximate room / wall dimensions or seating size? 📐\n"
                 f"2. Do you have a preferred finish in mind (Solid Teak, Sheesham, or Marine Ply with Laminate/PU)?\n\n"
-                f"Or if you prefer, our team can visit with laser measuring tape and wood samples to measure on-site! 🪚"
+                f"Alternatively, if you're busy or don't have time for a visit, you can also share room photos right here in chat for an instant online quote! 📸🪚"
             )
-
         # 8. Material inquiry
         if any(w in text_lower for w in ["teak", "sheesham", "ply", "laminate", "material", "wood", "difference", "લાકડું", "સાગવાન", "લાકડા", "लकड़ी", "सागवान"]):
             if lang == "gu":
