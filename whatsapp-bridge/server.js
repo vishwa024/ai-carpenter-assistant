@@ -222,9 +222,18 @@ async function startWhatsApp() {
             } catch (e) {}
 
             // 2. Start "typing..." (3 dots) presence update on customer's phone
+            // WhatsApp requires presenceSubscribe to route typing events to the other phone
             try {
+                await sock.presenceSubscribe(remoteJid);
                 await sock.sendPresenceUpdate('composing', remoteJid);
             } catch (e) {}
+
+            // Continuously pulse the 'composing' presence every 1.2s so the 3 dots stay visible
+            const typingInterval = setInterval(async () => {
+                try {
+                    await sock.sendPresenceUpdate('composing', remoteJid);
+                } catch (e) {}
+            }, 1200);
 
             const startComposing = Date.now();
 
@@ -259,12 +268,17 @@ async function startWhatsApp() {
             if (elapsed < minTypingDelayMs) {
                 await new Promise(r => setTimeout(r, minTypingDelayMs - elapsed));
             }
+            clearInterval(typingInterval);
 
             // 5. Deliver response and pause typing presence
             if (replyText) {
                 console.log(`[OUTBOUND REPLY] Sending automatic reply to +${senderPhone}...\n`);
-                await sock.sendMessage(remoteJid, { text: replyText });
-                console.log(`[SUCCESS] Automated reply delivered on real WhatsApp!`);
+                try {
+                    await sock.sendMessage(remoteJid, { text: replyText });
+                    console.log(`[SUCCESS] Automated reply delivered on real WhatsApp!`);
+                } catch (sendErr) {
+                    console.error(`[SEND ERROR] Failed to send message: ${sendErr.message}`);
+                }
             }
             try {
                 await sock.sendPresenceUpdate('paused', remoteJid);
@@ -272,5 +286,12 @@ async function startWhatsApp() {
         }
     });
 }
+
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION]', err?.message || err);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('[UNHANDLED REJECTION]', err?.message || err);
+});
 
 startWhatsApp();
