@@ -282,8 +282,8 @@ def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dic
     if q_match:
         res["quantity"] = int(q_match.group(1))
 
-    # Parse rectangular dimensions (e.g. 10*20, 10x20, 10 by 20, 12x9, 4x4)
-    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:x|\*|by)\s*(\d+(?:\.\d+)?)", target)
+    # Parse rectangular dimensions (e.g. 10*20, 10x20, 10 by 20, 12x9, 4x4, 10×10)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:x|X|×|\*|by|બાય|बाय)\s*(\d+(?:\.\d+)?)", target)
     if match:
         l = float(match.group(1))
         w = float(match.group(2))
@@ -298,8 +298,8 @@ def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dic
             res["unit"] = "ft"
         return res
 
-    # Seater count
-    s_match = re.search(r"(\d+)\s*(?:seater|seat|સીટર|सीटर)", target)
+    # Seater / sofa count (e.g. '3 seater', '3 sofa', '5 seater', '3 seat', '3-seater')
+    s_match = re.search(r"(\d+)\s*[-]?\s*(?:seater|seat|sofa|સીટર|सीटर|સોફા|सोफा)", target)
     if s_match:
         res["seats"] = int(s_match.group(1))
         return res
@@ -801,10 +801,17 @@ class CarpenterAgent:
 
         # Detect and persist language
         detected_lang = detect_language(user_text)
+        english_intent_words = {
+            "i", "want", "to", "make", "need", "looking", "for", "please", "price",
+            "how", "much", "cost", "can", "you", "build", "create", "what", "is"
+        }
         if detected_lang in ("gu", "hi"):
             session.language = detected_lang
-        elif getattr(session, "language", "en") == "en":
-            session.language = detected_lang
+        elif len(words.intersection(english_intent_words)) >= 2:
+            if not any("\u0a80" <= ch <= "\u0aff" or "\u0900" <= ch <= "\u097f" for ch in user_text):
+                session.language = "en"
+        elif not getattr(session, "language", None):
+            session.language = detected_lang or "en"
 
         # Project type detection (Multilingual: Gujarati, Hindi, English, and common typos)
         matched_items: List[str] = []
@@ -907,8 +914,9 @@ class CarpenterAgent:
 
         # Update session with matched items
         dim_in_current_text = bool(
-            re.search(r"(\d+(?:\.\d+)?\s*(?:x|\*|by)\s*\d+)", text_lower)
-            or any(k in text_lower for k in ["seater", "સીટર", "सीटर", "king", "queen", "feet", "ft", "inch"])
+            re.search(r"(\d+(?:\.\d+)?\s*(?:x|X|×|\*|by|બાય|बाय)\s*\d+)", text_lower)
+            or re.search(r"\b(\d+)\s*[-]?\s*(?:seater|seat|sofa|સોફા|सोफा|સીટર|सीटर)\b", text_lower)
+            or any(k in text_lower for k in ["king size", "queen size", "feet", "ft", "inch", "l-shape", "l shape"])
         )
         if matched_items:
             if len(matched_items) == 1:
@@ -922,24 +930,31 @@ class CarpenterAgent:
                 if not dim_in_current_text:
                     session.dimensions = None
 
-        # Dimensions detection (e.g. 10x8, 10x8 ft, 10*20, 10*20feet, 3 seater, three sofa, 6 seater, 7x3)
-        dim_match = re.search(r"(\d+(?:\.\d+)?\s*(?:x|\*|by)\s*\d+(?:\.\d+)?\s*(?:ft|feet|inch|in|m|meter|ફૂટ|ફીટ|फुट|फीट)?)", text_lower)
+        # Dimensions detection (e.g. 10x8, 10x8 ft, 10*20, 10×10, 3 seater, 3 sofa, 6 seater, 7x3)
+        dim_match = re.search(
+            r"(\d+(?:\.\d+)?\s*(?:x|X|×|\*|by|બાય|बाय)\s*\d+(?:\.\d+)?\s*(?:ft|feet|inch|in|m|meter|ફૂટ|ફીટ|फुट|फीट)?)",
+            text_lower
+        )
         if dim_match:
-            session.dimensions = dim_match.group(0).strip()
-        elif any(k in text_lower for k in ["3 seater", "3-seater", "three sofa", "3 sofa", "3 seater sofa", "૩ સીટર", "३ सीटर", "3 seat"]):
-            session.dimensions = "3-Seater"
-        elif any(k in text_lower for k in ["5 seater", "5-seater", "૫ સીટર", "५ सीटर", "3+1+1", "3+2"]):
-            session.dimensions = "5-Seater (3+1+1)"
-        elif any(k in text_lower for k in ["6 seater", "6-seater", "૬ સીટર", "६ सीटर", "6 seat", "six seater"]):
-            session.dimensions = "6-Seater (approx 6ft x 3ft)"
-        elif any(k in text_lower for k in ["8 seater", "8-seater", "૮ સીટર", "૮-સીટર", "८ सीटर", "8 seat", "eight seater"]):
-            session.dimensions = "8-Seater (approx 8ft x 3.5ft)"
-        elif any(k in text_lower for k in ["l-shape", "l shape", "corner sofa"]):
-            session.dimensions = "L-Shape Sectional"
-        elif any(k in text_lower for k in ["king size", "king bed", "કિંગ સાઈઝ", "किंग साइज"]):
-            session.dimensions = "King Size (approx 6.5ft x 6ft)"
-        elif any(k in text_lower for k in ["queen size", "queen bed", "ક્વીન સાઈઝ", "क्वीन साइज"]):
-            session.dimensions = "Queen Size (approx 6.5ft x 5ft)"
+            session.dimensions = dim_match.group(0).strip().replace("×", "x").replace("X", "x")
+        else:
+            sofa_match = re.search(r"\b(\d+)\s*[-]?\s*(?:seater|seat|sofa|સોફા|सोफा|સીટર|सीटर)\b", text_lower)
+            if sofa_match:
+                sc = int(sofa_match.group(1))
+                if sc in (1, 2, 3):
+                    session.dimensions = f"{sc}-Seater" if sc == 3 else "3-Seater"
+                elif sc in (4, 5):
+                    session.dimensions = "5-Seater (3+1+1)"
+                elif sc in (6, 7):
+                    session.dimensions = "6-Seater (approx 6ft x 3ft)"
+                elif sc >= 8:
+                    session.dimensions = "8-Seater (approx 8ft x 3.5ft)"
+            elif any(k in text_lower for k in ["l-shape", "l shape", "corner sofa"]):
+                session.dimensions = "L-Shape Sectional"
+            elif any(k in text_lower for k in ["king size", "king bed", "કિંગ સાઈઝ", "किंग साइज"]):
+                session.dimensions = "King Size (approx 6.5ft x 6ft)"
+            elif any(k in text_lower for k in ["queen size", "queen bed", "ક્વીન સાઈઝ", "क्वीन साइज"]):
+                session.dimensions = "Queen Size (approx 6.5ft x 5ft)"
 
         # Materials detection
         materials_map = {
@@ -1082,21 +1097,24 @@ class CarpenterAgent:
                     session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
 
         # Check specific day / time slots
+        sat_label = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
+        sun_label = "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)" if session.language == "gu" else ("रविवार शाम 4:00 बजे (Sunday 4:00 PM)" if session.language == "hi" else "Sunday at 4:00 PM")
         days_and_slots = [
-            ("saturday", "Saturday Slot"),
-            ("sunday", "Sunday Slot"),
-            ("શનિવાર", "શનિવાર (Saturday Slot)"),
-            ("રવિવાર", "રવિવાર (Sunday Slot)"),
-            ("शनिवार", "शनिवार (Saturday Slot)"),
-            ("रविवार", "रविवार (Sunday Slot)"),
-            ("weekend", "Weekend Slot"),
-            ("tomorrow", "Tomorrow Slot"),
-            ("11:30", "11:30 AM Slot"),
-            ("4 pm", "4:00 PM Slot"),
+            ("saturday", sat_label),
+            ("sunday", sun_label),
+            ("શનિવાર", sat_label),
+            ("રવિવાર", sun_label),
+            ("शनिवार", sat_label),
+            ("रविवार", sun_label),
+            ("11:30", sat_label),
+            ("4 pm", sun_label),
+            ("weekend", sat_label),
+            ("tomorrow", "કાલે (Tomorrow)" if session.language == "gu" else ("कल (Tomorrow)" if session.language == "hi" else "Tomorrow")),
         ]
         for slot_kw, slot_val in days_and_slots:
             if slot_kw in text_lower:
-                session.appointment_status = "confirmed"
+                if session.appointment_status != "confirmed":
+                    session.appointment_status = "requested"
                 session.appointment_slot = slot_val
                 break
 
@@ -1107,9 +1125,11 @@ class CarpenterAgent:
             "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ",
             "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल"
         ]
+        has_slot_time = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am", "4:00"])
         has_detected_address = any(marker in text_lower for marker in address_markers) or (
             session.appointment_status == "requested"
             and any(c.isdigit() for c in user_text)
+            and not has_slot_time
             and not any(k in text_lower for k in [
                 "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
                 "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
@@ -1212,6 +1232,7 @@ class CarpenterAgent:
         has_address = any(marker in text_lower for marker in address_markers) or (
             session.appointment_status == "requested"
             and any(c.isdigit() for c in user_text)
+            and not has_time_slot
             and not any(k in text_lower for k in [
                 "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
                 "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
@@ -1691,14 +1712,13 @@ class CarpenterAgent:
             return generate_bargaining_response(session, session.customer_budget, user_text)
 
         # 6. Customer provided Dimensions & Requirements -> Approximate Budget, Timeline in Days, then Slot Booking
-        has_current_dimension = bool(
-            ("x" in text_lower or "*" in text_lower or " by " in text_lower)
-            and any(c.isdigit() for c in user_text)
-        ) or any(
-            w in text_lower for w in ["seater", "સીટર", "सीटर", "king size", "queen size", "feet", "inch"]
+        has_dimensions = bool(session.dimensions) or bool(
+            re.search(r"(\d+(?:\.\d+)?\s*(?:x|X|×|\*|by|બાય|बाय)\s*\d+)", text_lower)
+            or re.search(r"\b(\d+)\s*[-]?\s*(?:seater|seat|sofa|સોફા|સોફો|सोफा|સીટર|सीटर)\b", text_lower)
+            or any(w in text_lower for w in ["seater", "સીટર", "सीटर", "king size", "queen size", "feet", "inch", "l-shape", "l shape"])
         )
 
-        if has_current_dimension:
+        if session.project_type and has_dimensions and session.appointment_status not in ("requested", "confirmed"):
             dim_info = parse_dimension_details(session.dimensions, text_lower)
             quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
             p_name = session.project_type or "Custom Furniture"
@@ -1759,6 +1779,38 @@ class CarpenterAgent:
                     f"• *Craftsmanship*: Premium seasoned timber / IS 710 marine ply with soft-close German fittings.\n\n"
                     f"To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
                 )
+
+        # 6b. Dimensions provided but project type unknown (e.g. user starts by saying '10x10' or '10×10')
+        if has_dimensions and not session.project_type and session.appointment_status not in ("requested", "confirmed"):
+            dim_info = parse_dimension_details(session.dimensions, text_lower)
+            sqft = int(dim_info.get("sqft") or 100)
+            dim_label = session.dimensions or f"{sqft} sq.ft."
+            if lang == "gu":
+                return (
+                    f"તમારું માપ *{dim_label}* ({sqft} ચોરસ ફૂટ) નોંધી લીધું છે, {name_title}! 📏\n\n"
+                    f"આ માપમાં તમે કયું ફર્નિચર બનાવવા માંગો છો?\n"
+                    f"• *વોર્ડરોબ / કબાટ* (કુલ ખર્ચ આશરે ₹{sqft * 1380:,} થી ₹{sqft * 1750:,})\n"
+                    f"• *મોડ્યુલર કિચન* (18mm વોટરપ્રૂફ મરીન પ્લાય)\n"
+                    f"• *સ્ટોરેજ કેબિનેટ / ટીવી યુનિટ*\n\n"
+                    f"તમારે કયું ફર્નિચર બનાવવું છે? 🪵✨"
+                )
+            elif lang == "hi":
+                return (
+                    f"आपका नाप *{dim_label}* ({sqft} स्क्वायर फीट) हमने नोट कर लिया है, {name_title}! 📏\n\n"
+                    f"इस साइज में आप क्या बनवाना चाहते हैं?\n"
+                    f"• *वार्डरोब / अलमारी* (टर्न-की लागत लगभग ₹{sqft * 1380:,} से ₹{sqft * 1750:,})\n"
+                    f"• *मॉड्युलर किचन* (18mm वाटरप्रूफ मरीन प्लाई)\n"
+                    f"• *स्टोरेज कैबिनेट / टीवी यूनिट*\n\n"
+                    f"आप इनमें से क्या बनवाना पसंद करेंगे? 🪵✨"
+                )
+            return (
+                f"Got your measurements of *{dim_label}* ({sqft} sq.ft.), {name_title}! 📏\n\n"
+                f"What piece are you looking to handcraft for this space?\n"
+                f"• *Fitted Wardrobe* (Turn-key ₹{sqft * 1380:,} to ₹{sqft * 1750:,})\n"
+                f"• *Modular Kitchen* (IS 710 Waterproof Marine Ply)\n"
+                f"• *Storage Cabinet / TV Unit*\n\n"
+                f"Which one would you like to build? 🪵✨"
+            )
 
         # Multi-Item Inquiry (Customer asked for 2 or more pieces)
         if session.project_type and " & " in session.project_type:
@@ -1875,27 +1927,44 @@ class CarpenterAgent:
                 f"Do you have a specific finish in mind, like warm natural grains or modern matte solid colors? 🪵"
             )
 
-        # 9. General project advice
+        # 9. General project advice / Fallback
+        if session.project_type:
+            p_name = session.project_type
+            if lang == "gu":
+                return (
+                    f"નમસ્તે {name_title}! 🙏 અમે તમારી જરૂરિયાત મુજબ *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું.\n\n"
+                    f"અમે સીઝન્ડ સાગવાન લાકડું અને IS 710 વોટરપ્રૂફ મરીન પ્લાય સાથે જર્મન ફિટિંગ્સ વાપરીએ છીએ. સચોટ ક્વોટેશન માટે, શું તમે અંદાજિત સાઈઝ અથવા રૂમનો ફોટો શેર કરી શકો છો? 📐📸"
+                )
+            elif lang == "hi":
+                return (
+                    f"नमस्ते {name_title}! 🙏 हम आपकी पसंद के अनुसार *{p_name}* पूरी मजबूती और फिनिशिंग से बनाएंगे।\n\n"
+                    f"हम सीजन्ड सागवान लकड़ी और IS 710 वाटरप्रूफ मरीन प्लाई के साथ जर्मन फिटिंग्स इस्तेमाल करते हैं। पक्के कोटेशन के लिए, क्या आप अंदाज़न साइज़ या कमरे की फोटो भेज सकते हैं? 📐📸"
+                )
+            return (
+                f"Thank you for reaching out to Heritage Woodworks, {name_title}! 🪵\n\n"
+                f"We would love to handcraft your *{p_name}*. We use seasoned timber and IS 710 waterproof marine ply with German fittings.\n\n"
+                f"To share an exact quotation, what are your approximate room dimensions, or feel free to share a photo of your space here! 📐📸"
+            )
+
         if lang == "gu":
             name_suffix = f" {name_title}" if first_name else ""
             return (
                 f"નમસ્તે{name_suffix}! 🙏 હેરિટેજ વુડવર્ક્સમાં આપનું સ્વાગત છે.\n\n"
                 f"અમે સીઝન્ડ સાગવાન લાકડું અને IS 710 વોટરપ્રૂફ મરીન પ્લાય સાથે જર્મન ફિટિંગ્સ વાપરીએ છીએ. દરેક ફર્નિચર 12 થી 18 કામકાજના દિવસોમાં તૈયાર થાય છે.\n\n"
-                f"તમારે તમારા ઘર માટે કયું ફર્નિચર બનાવવું છે, અને અંદાજિત માપ શું છે? 📐"
+                f"તમારે તમારા ઘર માટે કયું ફર્નિચર બનાવવું છે? (જેમ કે વોર્ડરોબ, મોડ્યુલર કિચન, સોફા કે ડાઇનિંગ ટેબલ) 🪵✨"
             )
         elif lang == "hi":
             name_suffix = f" {name_title}" if first_name else " जी"
             return (
                 f"नमस्ते{name_suffix}! 🙏 हेरिटेज वुडवर्क्स में आपका स्वागत है।\n\n"
                 f"हम सीजन्ड सागवान लकड़ी और IS 710 वाटरप्रूफ मरीन प्लाई के साथ जर्मन फिटिंग्स इस्तेमाल करते हैं। हर फर्नीचर 12 से 18 कार्य दिवसों में मजबूती से तैयार होता है।\n\n"
-                f"आप अपने घर के लिए क्या बनवाना चाहते हैं, और अंदाज़न साइज़ क्या है? 📐"
+                f"आप अपने घर के लिए कौन सा फर्नीचर बनवाना चाहते हैं? (जैसे वार्डरोब, किचन, सोफा या डाइनिंग) 🪵✨"
             )
         name_suffix = f", {first_name}" if first_name else ""
         return (
             f"Thank you for reaching out to Heritage Woodworks{name_suffix}! 🪵\n\n"
-            f"We use seasoned timber and IS 710 waterproof marine ply with soft-close German fittings. "
-            f"Every piece is crafted with precision mortise & tenon joinery in 12–18 working days.\n\n"
-            f"What piece are you looking to create for your home, and what are the approximate room dimensions? 📐"
+            f"We handcraft bespoke wardrobes, modular kitchens, solid Teak/Sheesham dining tables, and architectural woodwork in 12–18 working days.\n\n"
+            f"What piece are you looking to create for your home? 📐✨"
         )
 
     def process_message(

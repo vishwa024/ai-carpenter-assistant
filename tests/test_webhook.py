@@ -397,6 +397,58 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("धन्यवाद", r5["response_text"])
         self.assertNotIn("अनुमानित बजट गाइड", r5["response_text"])
 
+    def test_sequential_sofa_flow_and_no_duplicate_questions(self):
+        """Verify sequential conversational flow: 'I want to make 3 sofa' produces exact 3-seater quote,
+        never asks 'What piece are you looking to create', and smoothly books appointment."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500111"
+
+        # Turn 1: Customer states piece and size in English
+        r1 = agent.process_message(phone, "I want to make 3 sofa", customer_name="hittu Clg")
+        self.assertEqual(r1["session"]["project_type"], "Custom Wooden Sofa")
+        self.assertEqual(r1["session"]["dimensions"], "3-Seater")
+        self.assertEqual(r1["session"]["language"], "en")
+        self.assertIn("Custom Wooden Sofa", r1["response_text"])
+        self.assertIn("3-Seater", r1["response_text"])
+        self.assertIn("22,000", r1["response_text"])
+        self.assertIn("Saturday at 11:30 AM", r1["response_text"])
+        self.assertNotIn("What piece are you looking to create", r1["response_text"])
+        self.assertNotIn("What piece are you planning to make", r1["response_text"])
+
+        # Turn 2: Customer agrees to visit
+        r2 = agent.process_message(phone, "Sure, Saturday 11:30 is good", customer_name="hittu Clg")
+        self.assertEqual(r2["session"]["appointment_status"], "requested")
+        self.assertIn("Saturday at 11:30 AM", r2["response_text"])
+        self.assertIn("address", r2["response_text"].lower())
+        self.assertNotIn("What piece are you looking to create", r2["response_text"])
+
+        # Turn 3: Customer provides address
+        r3 = agent.process_message(phone, "Flat 402, Royal Residency, Pal Road", customer_name="hittu Clg")
+        self.assertEqual(r3["session"]["appointment_status"], "confirmed")
+        self.assertIn("Booking confirmed", r3["response_text"])
+        self.assertIn("Flat 402", r3["response_text"])
+        self.assertIn("30 minutes", r3["response_text"])
+
+    def test_10x10_cabinet_dimension_no_re_ask(self):
+        """Verify '10×10' with multiplication symbol calculates 100 sq.ft turnkey quote and never asks for size again."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500222"
+
+        # Turn 1: Customer asks for Custom Storage Cabinet in Gujarati
+        r1 = agent.process_message(phone, "સ્ટોરેજ કેબિનેટ બનાવવી છે")
+        self.assertEqual(r1["session"]["project_type"], "Custom Storage Cabinet")
+        self.assertIn("Custom Storage Cabinet", r1["response_text"])
+
+        # Turn 2: Customer provides dimensions '10×10' (with Unicode multiplication \u00d7)
+        r2 = agent.process_message(phone, "10×10")
+        self.assertEqual(r2["session"]["dimensions"], "10x10")
+        self.assertIn("100 ચોરસ ફૂટ", r2["response_text"])
+        self.assertIn("138,000", r2["response_text"])
+        self.assertIn("175,000", r2["response_text"])
+        # Crucial check: Must NEVER ask for dimensions again!
+        self.assertNotIn("તમારી અંદાજિત રૂમ/દીવાલની સાઈઝ", r2["response_text"])
+        self.assertNotIn("બેઠક માપ શું છે", r2["response_text"])
+
 
 if __name__ == "__main__":
     unittest.main()
