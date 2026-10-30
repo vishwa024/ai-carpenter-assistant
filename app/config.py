@@ -59,7 +59,7 @@ class Config:
 
     # Gemini API settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     # Meta WhatsApp Cloud API settings
     WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
