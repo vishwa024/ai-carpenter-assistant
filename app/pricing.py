@@ -141,7 +141,7 @@ class PricingEngine:
         p_lower = (project_type or "").lower()
 
         # 1. Base Board / Timber Material Cost
-        if any(k in p_lower for k in ["dining", "table", "sofa", "temple", "mandir"]):
+        if any(k in p_lower for k in ["dining", "table", "sofa", "temple", "mandir", "chair"]):
             # Solid Teak / Sheesham construction
             timber_cuft = max(3.0, round(sqft * 0.15, 2))
             timber_rate = self.get_catalogue_rate("mat_cp_teak", 3800.0)

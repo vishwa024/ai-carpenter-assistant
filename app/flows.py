@@ -150,6 +150,27 @@ class BedFlow:
         )
 
 
+class ChairFlow:
+    """Specialized consultation flow for custom solid wooden chairs."""
+
+    @staticmethod
+    def get_advice(lang: str = "en") -> str:
+        if lang == "gu":
+            return (
+                "ખુરશીઓમાં સૌથી મહત્વનું છે બેસવાની મજબૂતી અને આરામ. અમે ૧૦૦% સીઝન્ડ સાગ કે શીશમ લાકડામાં પરંપરાગત ચૂલ-સાંધા (mortise and tenon joinery) બનાવીએ છીએ, જેથી વર્ષો સુધી ખુરશી ક્યારેય ડગમગે નહીં કે અવાજ ન કરે. "
+                "સીટમાં 40D હાઈ-રેઝિલિયન્સ સ્લીપવેલ ફોમ અને સ્ટેઈન-રેઝિસ્ટન્ટ ફેબ્રિક વાપરીએ છીએ, અને ઉપર 4-કોટ ઇટાલિયન PU પોલિશ કરવામાં આવે છે."
+            )
+        elif lang == "hi":
+            return (
+                "कुर्सियों में सबसे जरूरी है मजबूती और बैठने का आराम। हम १००% सीजन की हुई सागवान या शीशम की लकड़ी में पारंपरिक चूल-कब्जा जोड़ (mortise & tenon joinery) बनाते हैं, जिससे कुर्सियां कभी चरमराती या ढीली नहीं पड़तीं। "
+                "सीट में 40D हाई-रेज़िलिएंस फोम और दाग-धब्बे रोधी फैब्रिक लगाते हैं, और फिनिशिंग में 4-कोट इटैलियन PU पॉलिश दी जाती है।"
+            )
+        return (
+            "For wooden chairs, durability and ergonomics are paramount. We construct every frame in 100% seasoned CP Teak or Solid Sheesham using authentic mortise and tenon joinery with hardwood dowels—ensuring legs never wobble or squeak. "
+            "Seats feature 40D high-resilience Sleepwell foam with stain-resistant upholstery, sealed in a 4-coat Italian PU polish that resists daily wear."
+        )
+
+
 class FurnitureFlowRegistry:
     """Central registry routing customer inquiries to dedicated furniture flows."""
 
@@ -158,6 +179,7 @@ class FurnitureFlowRegistry:
         "kitchen": KitchenFlow,
         "sofa": SofaFlow,
         "dining": DiningFlow,
+        "chair": ChairFlow,
         "window": WindowsAndDoorsFlow,
         "door": WindowsAndDoorsFlow,
         "bed": BedFlow,
@@ -173,6 +195,8 @@ class FurnitureFlowRegistry:
             return KitchenFlow.get_advice(lang)
         elif any(k in p_type for k in ["sofa", "couch", "સોફા", "सोफा"]):
             return SofaFlow.get_advice(dim_str, lang)
+        elif any(k in p_type for k in ["chair", "chairs", "ખુરશી", "કુર્સી", "कुर्सी"]):
+            return ChairFlow.get_advice(lang)
         elif any(k in p_type for k in ["dining", "ડાઇનિંગ", "डाइनिंग", "table"]):
             return DiningFlow.get_advice(lang)
         elif any(k in p_type for k in ["window", "khidki", "बारी", "બારી", "door", "દરવાજો", "दरवाजा"]):

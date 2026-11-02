@@ -553,5 +553,70 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertIn("gneshplaza", r4["response_text"])
 
 
+    def test_photo_upload_inability_handling(self):
+        """Verify that customer stating inability to send/upload photos gets helpful alternative, never false quote."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919999900088"
+        
+        # Test 1: "user cannot send pic"
+        r1 = agent.process_message(phone, "user cannot send pic")
+        reply1 = r1["response_text"]
+        self.assertNotIn("Thank you so much for sharing the photos", reply1)
+        self.assertNotIn("within 2 hours", reply1)
+        self.assertIn("No worries", reply1)
+        self.assertIn("Approximate Dimensions", reply1)
+        self.assertIn("laser measurement", reply1)
+
+        # Test 2: Gujarati inability
+        phone_gu = "919999900089"
+        r2 = agent.process_message(phone_gu, "ફોટો અપલોડ નથી થતો")
+        reply2 = r2["response_text"]
+        self.assertNotIn("મોકલવા બદલ ખૂબ ખૂબ આભાર", reply2)
+        self.assertIn("ચિંતા કરશો નહીં", reply2)
+        self.assertIn("અંદાજિત માપ", reply2)
+
+        # Test 3: Hindi inability
+        phone_hi = "919999900090"
+        r3 = agent.process_message(phone_hi, "फोटो अपलोड नहीं हो रहा है")
+        reply3 = r3["response_text"]
+        self.assertNotIn("भेजने के लिए बहुत-बहुत धन्यवाद", reply3)
+        self.assertIn("चिंता मत कीजिए", reply3)
+        self.assertIn("अंदाज़न नाप", reply3)
+
+    def test_cabinate_then_chair_distinct_pricing_and_reset(self):
+        """Verify customer switching from cabinet to chair gets distinct chair pricing and net final price."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919999900091"
+
+        # Turn 1: Customer asks for cabinet
+        r1 = agent.process_message(phone, "cabinate")
+        reply1 = r1["response_text"]
+        s1 = agent.sessions.get(phone)
+        self.assertEqual(s1.project_type, "Custom Storage Cabinet")
+        self.assertIn("Custom Storage Cabinet", reply1)
+        self.assertIn("1,200", reply1)
+        self.assertIn("1,800 per sq. ft.", reply1)
+
+        # Turn 2: Customer asks for chair
+        r2 = agent.process_message(phone, "i want chair")
+        reply2 = r2["response_text"]
+        s2 = agent.sessions.get(phone)
+        self.assertEqual(s2.project_type, "Custom Wooden Chairs")
+        self.assertIn("Custom Wooden Chairs", reply2)
+        self.assertIn("3,500 – ₹6,500 per chair", reply2)
+        self.assertNotIn("Dining Table", reply2)
+        self.assertNotIn("38,000", reply2)  # NOT the ₹38k dining table!
+        self.assertNotIn("per sq. ft.", reply2)  # NOT per sq ft!
+
+        # Turn 3: Customer asks for final price
+        r3 = agent.process_message(phone, "what your final price")
+        reply3 = r3["response_text"]
+        self.assertIn("Custom Wooden Chairs", reply3)
+        self.assertIn("3,200 per chair", reply3)
+        self.assertIn("4,200 per chair", reply3)
+        self.assertNotIn("Dining Table", reply3)
+        self.assertNotIn("1,250", reply3)  # NOT cabinet sq ft rate!
+
+
 if __name__ == "__main__":
     unittest.main()

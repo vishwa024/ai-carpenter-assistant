@@ -194,6 +194,16 @@ def get_price_and_timeline_estimate(
         else:
             price = "₹95,000 – ₹1,50,000 (approx. ₹1,200 – ₹1,800/sq.ft depending on 1mm laminate vs PU polish & internal organizers)"
             timeline = "12 to 15 working days workshop fabrication + 2 days on-site installation"
+    elif any(k in p_type for k in ["chair", "chairs", "ખુરશી", "કુર્સી", "कुर्सी"]):
+        if lang == "gu":
+            price = "₹3,500 – ₹6,500 પ્રતિ ખુરશી (સોલિડ સાગવાન/શીશમ લાકડું, 40D હાઈ-ડેન્સિટી કુશન અને 4-કોટ PU પોલિશ)"
+            timeline = "7 થી 10 કામકાજના દિવસો"
+        elif lang == "hi":
+            price = "₹3,500 – ₹6,500 प्रति कुर्सी (सॉलिड सागवान/शीशम लकड़ी, 40D हाई-डेंसिटी कुशन और 4-कोट PU पॉलिश)"
+            timeline = "7 से 10 कार्य दिवस"
+        else:
+            price = "₹3,500 – ₹6,500 per chair (Solid Teak/Sheesham timber, 40D high-resilience foam cushion & 4-coat PU finish)"
+            timeline = "7 to 10 working days"
     elif "dining" in p_type or "table" in p_type or "ટેબલ" in p_type or "मेज" in p_type:
         if "8" in dim or "8-seater" in dim or "૮" in dim or "८" in dim:
             if lang == "gu":
@@ -283,7 +293,7 @@ def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dic
     target = f"{dim_str or ''} {text_lower}"
 
     # Check quantity like '2 khidkhi', '2 windows'
-    q_match = re.search(r"(\d+)\s*(?:khidkhi|khidki|windows?|doors?|kabaat|बारी|બારી|खिड़की|દરવાજા)", target)
+    q_match = re.search(r"(\d+)\s*(?:khidkhi|khidki|windows?|doors?|chairs?|khurshi|kursi|कुर्सी|ખુરશી|ખુરશીઓ|कुर्सियां|kabaat|बारी|બારી|खिड़की|દરવાજા)", target)
     if q_match:
         res["quantity"] = int(q_match.group(1))
 
@@ -304,7 +314,7 @@ def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dic
         return res
 
     # Seater / sofa count (e.g. '3 seater', '3 sofa', '5 seater', '3 seat', '3-seater')
-    s_match = re.search(r"(\d+)\s*[-]?\s*(?:seater|seat|sofa|સીટર|सीटर|સોફા|सोफा)", target)
+    s_match = re.search(r"(\d+)\s*[-]?\s*(?:seater|seat|sofa|chair|chairs|સીટર|सीटर|સોફા|सोफा|ખુરશી|कुर्सी)", target)
     if s_match:
         res["seats"] = int(s_match.group(1))
         return res
@@ -436,6 +446,34 @@ def calculate_turnkey_quote(
             },
             "timeline": timeline,
             "type": "kitchen"
+        }
+
+    # 4a. Custom Wooden Chairs
+    elif any(k in p_type for k in ["chair", "chairs", "ખુરશી", "કુર્સી", "कुर्सी"]):
+        chair_qty = qty if (qty and qty > 1) else (seats if (seats and seats > 1) else 4)
+        cost_per_chair_sheesham = 3400
+        cost_per_chair_teak = 4600
+        total_sheesham = int(round(chair_qty * cost_per_chair_sheesham))
+        total_teak = int(round(chair_qty * cost_per_chair_teak))
+        timber = int(round(total_sheesham * 0.50))
+        cushions = int(round(total_sheesham * 0.20))
+        polish = int(round(total_sheesham * 0.12))
+        labour = int(round(total_sheesham * 0.18))
+        timeline = "7 થી 10 કામકાજના દિવસો" if lang == "gu" else ("7 से 10 कार्य दिवस" if lang == "hi" else "7 to 10 working days")
+        return {
+            "quantity": chair_qty,
+            "rate_sheesham": cost_per_chair_sheesham,
+            "total_sheesham": total_sheesham,
+            "rate_teak": cost_per_chair_teak,
+            "total_teak": total_teak,
+            "breakdown": {
+                "timber": timber,
+                "cushions": cushions,
+                "polish": polish,
+                "labour": labour,
+            },
+            "timeline": timeline,
+            "type": "chair"
         }
 
     # 4. Dining Table
@@ -875,6 +913,57 @@ def has_address_marker(text: str) -> bool:
     return False
 
 
+def is_cannot_send_photo(text: str) -> bool:
+    """Detect if customer expresses inability to upload, send, or show photos."""
+    text_lower = text.lower()
+    phrases = [
+        "cannot send pic", "cant send pic", "can't send pic", "cannot send photo", "cant send photo", "can't send photo",
+        "cannot upload", "cant upload", "can't upload", "unable to upload", "not able to upload",
+        "cannot show", "cant show", "can't show", "unable to show", "not able to show",
+        "cannot share", "cant share", "can't share", "unable to share", "not able to share",
+        "cannot attach", "cant attach", "can't attach", "unable to attach",
+        "cannot provide", "cant provide", "not able to provide",
+        "cannot send", "cant send", "can't send", "unable to send", "not able to send",
+        "pic cannot", "pics cannot", "photo cannot", "photos cannot", "picture cannot", "pictures cannot",
+        "pic cant", "pics cant", "photo cant", "photos cant",
+        "pic can't", "pics can't", "photo can't", "photos can't",
+        "pic unable", "photo unable", "not properly", "failed to upload", "upload failed",
+        "problem uploading", "problem in upload", "upload issue", "error uploading",
+        "photo upload nahi", "pic upload nahi", "photo send nahi", "pic send nahi",
+        "photo nahi bhej", "pic nahi bhej", "photo nahi bhej sakta", "photo nahi bhej sakti", "photo nahi bhej sakte",
+        "photo upload nahi ho raha", "photo send nahi ho raha", "pic nahi ja rahi",
+        "photo nahi aa rahi", "photo bhej nahi sakta", "upload nahi ho raha",
+        "photo nathi mokli shakto", "photo nathi mokli shakat", "photo mokli nathi shakto",
+        "upload nathi thato", "upload nathi thatu", "photo nathi", "pic nathi",
+        "photo nathi aavti", "photo share nathi kari shakto",
+        "ફોટો અપલોડ નથી", "ફોટા અપલોડ નથી", "અપલોડ નથી થતો", "અપલોડ નથી થતી", "અપલોડ નથી થતું", "ફોટો નથી મોકલી", "નથી મોકલી શકતો",
+        "फोटो अपलोड नहीं", "अपलोड नहीं हो रहा", "अपलोड नहीं हो रही", "फोटो नहीं भेज सकता", "नहीं भेज सकता"
+    ]
+    if any(p in text_lower for p in phrases):
+        return True
+
+    has_photo_kw = any(k in text_lower for k in [
+        "pic", "pics", "photo", "photos", "picture", "pictures", "image", "images",
+        "ફોટો", "ફોટા", "તસવીર", "તસ્વીર",
+        "फोटो", "तस्वीर", "पिक", "पिक्चर"
+    ])
+    has_neg_kw = any(k in text_lower for k in [
+        "cannot", "cant", "can't", "unable", "not able", "failed", "problem", "error", "issue", "not",
+        "nahi", "nathi",
+        "નથી", "નહિ", "નહીં", "ના",
+        "नहीं", "ना", "मुश्किल", "दिक्कत", "समस्या"
+    ])
+    has_action_kw = any(k in text_lower for k in [
+        "send", "upload", "share", "show", "attach", "bhej", "mokl", "ચડાવી", "આપ",
+        "અપલોડ", "મોકલ", "મોકલી", "શેર", "બતાવ",
+        "अपलोड", "भेज", "भेजना", "शेयर", "दिखा"
+    ])
+    if has_photo_kw and has_neg_kw and has_action_kw:
+        return True
+
+    return False
+
+
 class CarpenterAgent:
     """Carpenter AI Agent Brain with Google Gemini integration and domain fallback."""
 
@@ -956,12 +1045,21 @@ class CarpenterAgent:
         ]):
             matched_items.append("Custom Wooden Windows")
 
-        # 5. Dining Table
-        if any(w in text_lower for w in [
-            "dining", "dinning", "dining table", "dinning table", "dinner table", "table",
-            "chair", "mej", "ટેબલ", "ડાઇનિંગ", "मेज", "डाइनिंग", "डाइनिंग टेबल", "ડાઇનિંગ ટેબલ"
-        ]) and not any(k in text_lower for k in ["study table", "dressing table", "coffee table"]):
+        # 5. Dining Table vs Custom Wooden Chairs
+        has_chair_kw = any(w in text_lower for w in [
+            "chair", "chairs", "khurshi", "khursi", "kursi", "kursiya", "kursiyan",
+            "armchair", "rocking chair", "wooden chair", "wooden chairs", "dining chair", "dining chairs",
+            "ખુરશી", "ખુરશીઓ", "લાકડાની ખુરશી", "કુર્સી", "कुर्सी", "कुर्सियां", "कुर्सियाँ", "लकड़ी की कुर्सी"
+        ])
+        has_table_kw = any(w in text_lower for w in [
+            "dining table", "dinning table", "dinner table", "table", "mej",
+            "ડાઇનિંગ ટેબલ", "ડાઇનિંગ", "डाइनिंग टेबल", "डाइनिंग", "मेज"
+        ]) and not any(k in text_lower for k in ["study table", "dressing table", "coffee table", "office table"])
+
+        if has_table_kw:
             matched_items.append("Solid Wood Dining Table")
+        elif has_chair_kw:
+            matched_items.append("Custom Wooden Chairs")
 
         # 6. Wooden Sofa
         if any(w in text_lower for w in [
@@ -1049,7 +1147,11 @@ class CarpenterAgent:
             session.dimensions = dim_match.group(0).strip().replace("×", "x").replace("X", "x")
         else:
             sofa_match = re.search(r"\b(\d+)\s*[-]?\s*(?:seater|seat|sofa|સોફા|सोफा|સીટર|सीटर)\b", text_lower)
-            if sofa_match:
+            chair_match = re.search(r"\b(\d+)\s*[-]?\s*(?:chairs?|khurshi|kursi|कुर्सी|ખુરશી|ખુરશીઓ|कुर्सियां|कुर्सियाँ)\b", text_lower)
+            if chair_match:
+                cq = int(chair_match.group(1))
+                session.dimensions = f"{cq} Chairs"
+            elif sofa_match:
                 sc = int(sofa_match.group(1))
                 if sc in (1, 2, 3):
                     session.dimensions = f"{sc}-Seater" if sc == 3 else "3-Seater"
@@ -1154,18 +1256,25 @@ class CarpenterAgent:
             session.consultation_mode = "virtual"
 
         # Check if customer mentions sharing / sending photos
-        photos_shared_keywords = [
-            "sent photo", "sent photos", "sent pics", "sending photos", "attached photo",
-            "here are photos", "here are the photos", "here is the photo", "here are pics",
-            "here are the pics", "check this picture", "check this photo",
-            "photo bhej diya", "photo bheja", "photo bhej raha", "photo moklya", "photo moklu",
-            "ફોટા મોકલ્યા", "ફોટો મોકલ્યો", "ફોટો મોકલું", "ફોટા મોકલો",
-            "फोटो भेज दिया", "फोटो भेजी", "फोटो भेज दी", "फोटो भेजा"
-        ]
-        if bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(ps in text_lower for ps in photos_shared_keywords):
-            session.consultation_mode = "virtual"
-            if "customer_shared_photos" not in session.notes:
-                session.notes.append("customer_shared_photos")
+        if is_cannot_send_photo(text_lower):
+            session.consultation_mode = "in_person"
+            if "customer_shared_photos" in session.notes:
+                session.notes.remove("customer_shared_photos")
+            if "cannot_send_photos" not in session.notes:
+                session.notes.append("cannot_send_photos")
+        else:
+            photos_shared_keywords = [
+                "sent photo", "sent photos", "sent pics", "sending photos", "attached photo",
+                "here are photos", "here are the photos", "here is the photo", "here are pics",
+                "here are the pics", "check this picture", "check this photo",
+                "photo bhej diya", "photo bheja", "photo bhej raha", "photo moklya", "photo moklu",
+                "ફોટા મોકલ્યા", "ફોટો મોકલ્યો", "ફોટો મોકલું", "ફોટા મોકલો",
+                "फोटो भेज दिया", "फोटो भेजी", "फोटो भेज दी", "फोटो भेजा"
+            ]
+            if bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(ps in text_lower for ps in photos_shared_keywords):
+                session.consultation_mode = "virtual"
+                if "customer_shared_photos" not in session.notes:
+                    session.notes.append("customer_shared_photos")
 
         # Check if previous agent turn offered a measurement visit
         prev_agent_offered_visit = False
@@ -1388,12 +1497,45 @@ class CarpenterAgent:
                 f"Feel free to share any photo references or design ideas here anytime before we arrive. Looking forward to meeting you! 🪵✨"
             )
 
+        # 1a. Customer CANNOT send photos / upload failed / cannot show pic
+        if is_cannot_send_photo(text_lower) or "cannot_send_photos" in session.notes:
+            if "cannot_send_photos" in session.notes:
+                session.notes.remove("cannot_send_photos")
+            if lang == "gu":
+                return (
+                    f"બિલકુલ ચિંતા કરશો નહીં {name_title}! 🙏 જો ફોટા અપલોડ ન થઈ શકતા હોય કે ન મોકલી શકો, તો કોઈ વાંધો નથી.\n\n"
+                    f"તમે ફક્ત આટલું જણાવી શકો છો:\n"
+                    f"1. 📏 *અંદાજિત માપ*: રૂમ કે દીવાલની અંદાજિત લંબાઈ અને ઊંચાઈ (ફૂટ અથવા ઈંચમાં)\n"
+                    f"2. 🪵 *પસંદગીનું લાકડું/ફિનિશ*: સાગવાન, શીશમ, કે મરીન પ્લાય + લેમિનેટ/PU પોલિશ\n\n"
+                    f"અથવા, અમારી માસ્ટર કારીગર ટીમ રૂબરૂ તમારા ઘરે આવીને એકદમ *ફ્રી લેઝર માપણી* કરી આપશે અને લાકડા/PU ફિનિશના અસલી સેમ્પલ્સ પણ બતાવશે! 📐🪵\n\n"
+                    f"તમે અંદાજિત માપ જણાવવા માંગો છો, કે પછી અમે ફ્રી માપણી વિઝિટ ગોઠવી આપીએ? 😊"
+                )
+            elif lang == "hi":
+                return (
+                    f"कोई बात नहीं {name_title}! 🙏 अगर फोटो अपलोड नहीं हो पा रही है या भेजने में दिक्कत आ रही है, तो बिल्कुल चिंता मत कीजिए।\n\n"
+                    f"आप बस इतना बता दीजिए:\n"
+                    f"1. 📏 *अंदाज़न नाप*: कमरे या दीवार की लंबाई और ऊंचाई (फुट या इंच में)\n"
+                    f"2. 🪵 *पसंदीदा मटेरियल*: सागवान, शीशम, या वाटरप्रूफ मरीन प्लाई + लैमिनेट/PU पॉलिश\n\n"
+                    f"या फिर हमारी मास्टर कारिगर टीम आपके घर आकर *100% फ्री लेज़र से नाप* ले लेगी और साथ में लकड़ी व PU फिनिश के असली सैंपल्स भी दिखा देगी! 📐🪵\n\n"
+                    f"क्या आप अंदाज़न नाप बताना चाहेंगे, या हम फ्री विज़िट का समय तय कर लें? 😊"
+                )
+            return (
+                f"No worries at all {name_title}! 🙏 If you cannot upload or send photos right now, that is completely fine.\n\n"
+                f"You can simply share:\n"
+                f"1. 📏 *Approximate Dimensions*: Rough length and height of the wall/space in feet or inches\n"
+                f"2. 🪵 *Preferred Material/Finish*: Solid Teak, Sheesham, or BWP Marine Ply with Laminate/PU polish\n\n"
+                f"Alternatively, our master artisan team can visit your site for a *free laser measurement* and bring physical wood and PU finish swatches to your home! 📐🪵\n\n"
+                f"Would you prefer sharing approximate dimensions, or should we schedule a quick free measurement visit? 😊"
+            )
+
         # 1b. Customer shared room photos or design pictures
-        has_sent_photos = "customer_shared_photos" in session.notes or bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(
-            ps in text_lower for ps in [
-                "sent photo", "sent photos", "sent pics", "photo bhej", "photo mokl",
-                "photos mokl", "photo send", "pics send", "here is photo", "here are the photos", "here is the pic"
-            ]
+        has_sent_photos = not is_cannot_send_photo(text_lower) and (
+            "customer_shared_photos" in session.notes or bool(re.search(r"(?:sent|send|sending|attached|share|sharing|bhej|mokl)\w*\s*(?:the\s*)?(?:photos?|pics?|pictures?|images?|design|ફોટા|ફોટો|फोटो)", text_lower)) or any(
+                ps in text_lower for ps in [
+                    "sent photo", "sent photos", "sent pics", "photo bhej", "photo mokl",
+                    "photos mokl", "photo send", "pics send", "here is photo", "here are the photos", "here is the pic"
+                ]
+            )
         )
         if has_sent_photos:
             if lang == "gu":
@@ -1574,6 +1716,40 @@ class CarpenterAgent:
                         f"• *L-Shape Sectional*: *₹48,000 net*\n\n"
                         f"*(Includes solid seasoned timber, 40D high-resilience foam, washable fabric covers, and delivery with zero hidden charges.)*"
                     )
+
+            # 1b. Custom Wooden Chairs
+            if any(k in p_lower for k in ["chair", "chairs", "ખુરશી", "કુર્સી", "कुर्सी"]):
+                qty_val = 4
+                if session.dimensions:
+                    q_m = re.search(r"\b(\d+)\b", session.dimensions)
+                    if q_m:
+                        qty_val = int(q_m.group(1))
+                total_sheesham = qty_val * 3200
+                total_teak = qty_val * 4200
+                qty_label_en = f" ({qty_val} chairs)" if qty_val > 1 else ""
+                qty_label_hi = f" ({qty_val} कुर्सियां)" if qty_val > 1 else ""
+                qty_label_gu = f" ({qty_val} ખુરશીઓ)" if qty_val > 1 else ""
+
+                if lang == "gu":
+                    return (
+                        f"અમારી *Custom Wooden Chairs (લાકડાની ખુરશીઓ)*{qty_label_gu} માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *સોલિડ શીશમ ડાઇનિંગ ખુરશી (40D કુશનિંગ)*: *₹3,200 પ્રતિ ખુરશી* → *₹{total_sheesham:,} નેટ*\n\n"
+                        f"• *સીઝન કરેલ સાગવાન (CP Teak) ખુરશી (પ્રીમિયમ PU પોલિશ)*: *₹4,200 પ્રતિ ખુરશી* → *₹{total_teak:,} નેટ*\n\n"
+                        f"*(100% સીઝન્ડ લાકડું, મજબૂત ચૂલ-સાંધા જોઈન્ટ્સ, 40D સ્લીપવેલ ફોમ, વોશેબલ ફેબ્રિક અને 4-કોટ PU ફિનિશ સહિત, કોઈ છુપો ચાર્જ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"हमारी *Custom Wooden Chairs (लकड़ी की कुर्सियों)*{qty_label_hi} के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *सॉलिड शीशम डाइनिंग चेयर (40D कुशन सीट)*: *₹3,200 प्रति कुर्सी* → *₹{total_sheesham:,} नेट*\n\n"
+                        f"• *सीजन किया हुआ सीपी सागवान चेयर (प्रीमियम PU पॉलिश)*: *₹4,200 प्रति कुर्सी* → *₹{total_teak:,} नेट*\n\n"
+                        f"*(100% सीजन की हुई लकड़ी, मजबूत चूल-कब्जा जोड़, 40D स्लीपवेल फोम, वॉशेबल फैब्रिक और 4-कोट PU फिनिश सब शामिल है, कोई अतिरिक्त चार्ज नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for *Custom Wooden Chairs*{qty_label_en} is:\n\n"
+                    f"• *Solid Sheesham Dining Chair (with 40D cushioned seat)*: *₹3,200 per chair* → *₹{total_sheesham:,} net*\n\n"
+                    f"• *Seasoned CP Teak Chair (with premium PU polish)*: *₹4,200 per chair* → *₹{total_teak:,} net*\n\n"
+                    f"*(Handcrafted with 100% seasoned timber, authentic mortise & tenon joinery, 40D high-resilience foam, stain-resistant fabric, and 4-coat PU finish with zero hidden charges.)*"
+                )
 
             # 2. Dining Table
             if any(k in p_lower for k in ["dining", "table", "ટેબલ", "मेज"]):
@@ -2193,6 +2369,10 @@ class CarpenterAgent:
                 ask_q_en = "What seating size are you planning (e.g., 3-seater, 5-seater 3+1+1, or L-shape sectional)? 🪵"
                 ask_q_hi = "आप कितने सीटर का सोफा बनवाना चाहते हैं (जैसे 3-सीटर, 5-सीटर 3+1+1, या L-शेप)? 🪵"
                 ask_q_gu = "તમે કેટલા સીટરનો સોફો બનાવવા માંગો છો (જેમ કે 3-સીટર, 5-સીટર 3+1+1, કે L-શેપ)? 🪵"
+            elif any(k in p_lower for k in ["chair", "chairs", "ખુરશી", "કુર્સી", "कुर्सी"]):
+                ask_q_en = "How many chairs do you need (for example 2, 4, or 6 chairs), and do you prefer armchairs or standard dining chairs? 🪑"
+                ask_q_hi = "आपको कितनी कुर्सियां चाहिए (जैसे 2, 4, या 6 कुर्सियां), और क्या आप आर्मचेयर पसंद करेंगे या नॉर्मल डाइनिंग चेयर? 🪑"
+                ask_q_gu = "તમારે કેટલી ખુરશીઓની જરૂર છે (જેમ કે 2, 4, કે 6 ખુરશી), અને તમે હાથા વાળી (armchair) કે સામાન્ય ડાઇનિંગ ખુરશી પસંદ કરશો? 🪑"
             elif any(k in p_lower for k in ["dining", "table", "ટેબલ", "मेज"]):
                 ask_q_en = "Are you looking for a 4-seater, 6-seater, or 8-seater dining set? 🪑"
                 ask_q_hi = "आप कितने सीटर का डाइनिंग सेट बनवाना चाहते हैं (जैसे 4-सीटर, 6-सीटर, या 8-सीटर)? 🪑"
@@ -2215,7 +2395,7 @@ class CarpenterAgent:
                 ask_q_gu = "તમારી દીવાલ અથવા જગ્યાનું અંદાજિત માપ શું છે (જેમ કે 6x4 ફૂટ કે 8x6 ફૂટ)? 📐"
 
             is_solid_wood = any(k in p_lower for k in [
-                "sofa", "couch", "dining", "table", "bed", "palang", "mandir", "temple", "door",
+                "sofa", "couch", "dining", "table", "chair", "chairs", "bed", "palang", "mandir", "temple", "door",
                 "સોફા", "ડાઇનિંગ", "ટેબલ", "પલંગ", "મંદિર", "દરવાજો",
                 "सोफा", "डाइनिंग", "मेज", "पलंग", "मंदिर", "दरवाजा"
             ])
