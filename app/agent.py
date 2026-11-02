@@ -901,7 +901,8 @@ class CarpenterAgent:
     def _extract_project_metadata(self, session: CustomerSession, user_text: str) -> None:
         """Extract project specifications and scheduling intent from conversation text."""
         text_lower = user_text.lower()
-        words = set(re.findall(r"\b\w+\b", text_lower))
+        clean_tokens = set(re.sub(r"[^\w\s\u0900-\u097F\u0A80-\u0AFF]", " ", text_lower).split())
+        words = set(re.findall(r"\b\w+\b", text_lower)).union(clean_tokens)
 
         # Extract Ahmedabad locality if present
         loc = detect_ahmedabad_locality(user_text)
@@ -1173,8 +1174,9 @@ class CarpenterAgent:
                 prev_text = turn.get("text", "").lower()
                 if any(k in prev_text for k in [
                     "visit", "schedule", "measurement", "slot", "workshop", "માપણી", "મુલાકાત", "નાપ", "વિઝિટ",
-                    "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल दिखाने", "विज़िट", "नाप लेने",
-                    "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ બતાવવા", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
+                    "to your site", "bring fabric", "bring timber", "bring physical", "samples", "swatches",
+                    "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल", "सैंपल्स", "विज़िट", "नाप लेने", "नाप लेकर", "लेआउट",
+                    "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ", "સેમ્પલ્સ", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
                     "शनिवार", "रविवार", "saturday at", "sunday at", "which slot", "કયો સમય", "कौन सा समय"
                 ]):
                     prev_agent_offered_visit = True
@@ -1262,7 +1264,8 @@ class CarpenterAgent:
     def _generate_fallback_response(self, session: CustomerSession, user_text: str) -> str:
         """Intelligent offline Master Carpenter response generator with multi-turn multilingual state."""
         text_lower = user_text.lower()
-        words = set(re.findall(r"\b\w+\b", text_lower))
+        clean_tokens = set(re.sub(r"[^\w\s\u0900-\u097F\u0A80-\u0AFF]", " ", text_lower).split())
+        words = set(re.findall(r"\b\w+\b", text_lower)).union(clean_tokens)
         lang = getattr(session, "language", "en") or "en"
 
         # Extract caller name for personal addressing (filter out invalid / placeholder names)
@@ -1295,8 +1298,9 @@ class CarpenterAgent:
 
         visit_offer_keywords = [
             "visit", "schedule", "measurement", "slot", "workshop", "માપણી", "મુલાકાત", "નાપ", "વિઝિટ",
-            "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल दिखाने", "विज़िट", "नाप लेने",
-            "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ બતાવવા", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
+            "to your site", "bring fabric", "bring timber", "bring physical", "samples", "swatches",
+            "घर आएं", "घर आए", "घर आकर", "घर आ सकते", "सैंपल", "सैंपल्स", "विज़िट", "नाप लेने", "नाप लेकर", "लेआउट",
+            "ઘરે આવીએ", "ઘરે આવો", "સેમ્પલ", "સેમ્પલ્સ", "શનિવારે", "રવિવારે", "શનિવાર", "રવિવાર",
             "शनिवार", "रविवार", "saturday at", "sunday at", "which slot", "કયો સમય", "कौन सा समय"
         ]
         prev_agent_offered_visit = any(k in prev_agent_msg for k in visit_offer_keywords)
@@ -2005,13 +2009,27 @@ class CarpenterAgent:
                     f"Would you like us to bring physical laminate shade cards to your site this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐✨"
                 )
 
-        # 5. Customer states a Budget or requests Bargaining / Discount / Negotiation
-        has_budget_mention = bool(
-            session.customer_budget
-            or any(w in words for w in ["budget", "discount", "expensive", "costly", "cheaper", "reduce", "less", "concession", "afford", "બજેટ", "ઓછું", "ઓછા", "બજેટમાં", "बजट", "कम", "कम करो", "डिस्काउंट"])
-            or any(k in text_lower for k in ["too high", "too much", "best price", "can you do", "my budget", "within", "max", "ભાવ ઓછો", "भाव कम"])
+        # 5. Customer states a Budget or requests Bargaining / Discount / Negotiation in current turn
+        has_new_budget_number = bool(
+            re.search(r"(?:budget\s*(?:is|of|around)?|have|max|for|in|only|બજેટ|ખર્ચ|बजट)\s*[:=]?\s*(?:rs\.?|inr|₹)?\s*(\d{1,3}(?:,\d{3})+|\d+)", text_lower)
+            or re.search(r"\b(\d{1,3})\s*k\b", text_lower)
         )
-        if has_budget_mention:
+        has_bargaining_words = bool(
+            any(w in words for w in [
+                "budget", "discount", "expensive", "costly", "cheaper", "reduce", "less", "concession", "afford",
+                "બજેટ", "ઓછું", "ઓછા", "બજેટમાં", "ઓછો", "બજેટની",
+                "बजट", "कम", "कम करो", "डिस्काउंट", "रियायत", "गुंजाइश", "कमती"
+            ])
+            or any(k in text_lower for k in [
+                "too high", "too much", "can you do", "my budget", "within", "max",
+                "ભાવ ઓછો", "ભાવ ઘટાડો", "ભાવ ઓછો કરો", "ભાવમાં કંઈક કરો",
+                "भाव कम", "कुछ कम करो", "कम हो सकता", "कम करिए", "कम करो", "ज्यादा है", "बहुत महंगा"
+            ])
+        )
+        is_current_bargaining_intent = (has_new_budget_number or has_bargaining_words) and not (
+            user_is_affirming or bool(words.intersection(affirmative_words)) or has_affirming_phrase
+        )
+        if is_current_bargaining_intent:
             return generate_bargaining_response(session, session.customer_budget, user_text)
 
         # 6. Customer provided Dimensions & Requirements -> Approximate Budget, Timeline in Days, then Slot Booking
