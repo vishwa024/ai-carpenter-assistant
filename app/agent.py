@@ -1369,6 +1369,209 @@ class CarpenterAgent:
                 f"Our master carpenter team will call you 30 minutes before arrival. Looking forward to meeting you! 🙏🪵"
             )
 
+        # 4b. Customer asked for Final Price / Net Rate / Best Price (Return Final Price ONLY with zero questions, timeline, or visit pitches)
+        is_final_price_inquiry = any(
+            k in text_lower for k in [
+                "final price", "final rate", "final cost", "final quote", "what your final price",
+                "what is your final price", "whats your final price", "what is final price",
+                "give final price", "tell final price", "what final price", "last price",
+                "last rate", "lowest price", "bottom price", "rock bottom", "fixed price",
+                "net price", "cheapest price", "minimum price", "kam se kam",
+                "फाइनल प्राइस", "लास्ट प्राइस", "फाइनल रेट", "फाइनल भाव", "आखिरी रेट",
+                "पक्का रेट", "अंतिम रेट", "अंतिम भाव", "फाइनल कितना", "लास्ट कितना",
+                "ફાઇનલ ભાવ", "છેલ્લો ભાવ", "લાસ્ટ પ્રાઇસ", "ફાઇનલ કિંમત", "છેલ્લી કિંમત",
+                "પાક્કો ભાવ", "છેલ્લે કેટલા"
+            ]
+        ) or any(
+            phrase in text_lower for phrase in [
+                "your final price", "the final price", "tell me final", "give me final",
+                "bhav final", "rate final", "final bolo", "last bolo"
+            ]
+        )
+        if is_final_price_inquiry:
+            p_name = session.project_type or "Custom Furniture"
+            dim_info = parse_dimension_details(session.dimensions, text_lower) if session.dimensions else {}
+            quote = calculate_turnkey_quote(session.project_type, dim_info, lang) if (session.project_type and session.dimensions) else {}
+            sqft = int(quote.get("sqft") or 0) if session.dimensions else 0
+            dim_str = session.dimensions or ""
+            p_lower = p_name.lower()
+
+            # 1. Sofa
+            if any(k in p_lower for k in ["sofa", "couch", "સોફા", "सोफा"]):
+                if "3" in (session.dimensions or "") or "three" in (session.dimensions or "").lower():
+                    if lang == "gu":
+                        return (
+                            f"અમારા *Custom Wooden Sofa (3-Seater)* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                            f"• *3-સીટર સોલિડ વુડ સોફા*: *₹22,000 નેટ*\n\n"
+                            f"*(સીઝન્ડ સાગ/શીશમ લાકડું, 40D હાઈ-ડેન્સિટી કુશન્સ, વોશેબલ ફેબ્રિક અને ડિલિવરી સહિત, કોઈ છુપો ખર્ચ નથી.)*"
+                        )
+                    elif lang == "hi":
+                        return (
+                            f"हमारे *Custom Wooden Sofa (3-Seater)* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                            f"• *3-सीटर सॉलिड वुड सोफा*: *₹22,000 नेट*\n\n"
+                            f"*(सागवान/शीशम लकड़ी, 40D हाई-डेंसिटी कुशन, वॉशेबल फैब्रिक और डोरस्टेप डिलीवरी सहित, कोई छिपा हुआ खर्च नहीं है।)*"
+                        )
+                    return (
+                        f"Our final workshop-direct price for *Custom Wooden Sofa (3-Seater)* is:\n\n"
+                        f"• *3-Seater Solid Wood Sofa*: *₹22,000 net*\n\n"
+                        f"*(Includes seasoned solid Teak/Sheesham timber, 40D high-density cushions, washable fabric covers, and doorstep delivery with zero hidden charges.)*"
+                    )
+                elif "5" in (session.dimensions or "") or "five" in (session.dimensions or "").lower():
+                    if lang == "gu":
+                        return (
+                            f"અમારા *Custom Wooden Sofa (5-Seater 3+1+1)* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                            f"• *5-સીટર સોફા સેટ (3+1+1)*: *₹35,000 નેટ*\n\n"
+                            f"*(સોલિડ સીઝન્ડ લાકડું, 40D કુશન્સ અને ડિલિવરી સહિત, કોઈ છુપો ખર્ચ નથી.)*"
+                        )
+                    elif lang == "hi":
+                        return (
+                            f"हमारे *Custom Wooden Sofa (5-Seater 3+1+1)* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                            f"• *5-सीटर सोफा सेट (3+1+1)*: *₹35,000 नेट*\n\n"
+                            f"*(सॉलिड सीजन्ड लकड़ी, 40D कुशन और डोरस्टेप डिलीवरी सहित, कोई अतिरिक्त चार्ज नहीं है।)*"
+                        )
+                    return (
+                        f"Our final workshop-direct price for *Custom Wooden Sofa (5-Seater 3+1+1)* is:\n\n"
+                        f"• *5-Seater Sofa Set (3+1+1)*: *₹35,000 net*\n\n"
+                        f"*(Includes solid seasoned timber, 40D high-resilience cushions, washable fabric covers, and delivery with zero hidden charges.)*"
+                    )
+                else:
+                    if lang == "gu":
+                        return (
+                            f"અમારા *Custom Wooden Sofa* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                            f"• *3-સીટર*: *₹22,000 નેટ*\n\n"
+                            f"• *5-સીટર (3+1+1)*: *₹35,000 નેટ*\n\n"
+                            f"• *L-શેપ સેક્શનલ*: *₹48,000 નેટ*\n\n"
+                            f"*(સોલિડ સાગ/શીશમ લાકડું, 40D કુશન્સ અને ડિલિવરી સહિત, કોઈ છુપો ખર્ચ નથી.)*"
+                        )
+                    elif lang == "hi":
+                        return (
+                            f"हमारे *Custom Wooden Sofa* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                            f"• *3-सीटर*: *₹22,000 नेट*\n\n"
+                            f"• *5-सीटर (3+1+1)*: *₹35,000 नेट*\n\n"
+                            f"• *L-शेप सेक्शनल*: *₹48,000 नेट*\n\n"
+                            f"*(सागवान/शीशम लकड़ी, 40D कुशन और डोरस्टेप डिलीवरी सहित, कोई अतिरिक्त चार्ज नहीं है।)*"
+                        )
+                    return (
+                        f"Our final workshop-direct price for *Custom Wooden Sofa* is:\n\n"
+                        f"• *3-Seater*: *₹22,000 net*\n\n"
+                        f"• *5-Seater (3+1+1)*: *₹35,000 net*\n\n"
+                        f"• *L-Shape Sectional*: *₹48,000 net*\n\n"
+                        f"*(Includes solid seasoned timber, 40D high-resilience foam, washable fabric covers, and delivery with zero hidden charges.)*"
+                    )
+
+            # 2. Dining Table
+            if any(k in p_lower for k in ["dining", "table", "ટેબલ", "मेज"]):
+                if lang == "gu":
+                    return (
+                        f"અમારા *Solid Wood Dining Table* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *6-સીટર ડાઇનિંગ ટેબલ (આશરે 6x3 ફૂટ)*: *₹36,000 નેટ* (સોલિડ ટેબલ + ૬ કુશન ખુરશીઓ & PU ફિનિશ)\n\n"
+                        f"• *8-સીટર ડાઇનિંગ ટેબલ (આશરે 8x3.5 ફૂટ)*: *₹52,000 નેટ* (સોલિડ ટેબલ + ૮ કુશન ખુરશીઓ)\n\n"
+                        f"*(100% સીઝન્ડ સાગ/શીશમ લાકડું, મોર્ટાઈઝ જોઈનરી અને ડિલિવરી સહિત, કોઈ છુપો ચાર્જ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"हमारे *Solid Wood Dining Table* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *6-सीटर डाइनिंग टेबल (लगभग 6x3 फीट)*: *₹36,000 नेट* (सॉलिड टेबल + ६ कुशन कुर्सियां और PU फिनिश)\n\n"
+                        f"• *8-सीटर डाइनिंग टेबल (लगभग 8x3.5 फीट)*: *₹52,000 नेट* (सॉलिड टेबल + ८ कुशन कुर्सियां)\n\n"
+                        f"*(100% सीजन्ड सागवान/शीशम लकड़ी, मजबूत जोड़ और डोरस्टेप डिलीवरी सहित, कोई अतिरिक्त चार्ज नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for *Solid Wood Dining Table* is:\n\n"
+                    f"• *6-Seater Dining Table (approx 6ft x 3ft)*: *₹36,000 net* (Solid Teak/Sheesham table with 6 cushioned chairs & 4-coat PU finish)\n\n"
+                    f"• *8-Seater Dining Table (approx 8ft x 3.5ft)*: *₹52,000 net* (Solid Teak/Sheesham with 8 cushioned chairs)\n\n"
+                    f"*(Includes 100% seasoned timber, precision mortise & tenon joinery, and doorstep delivery with zero hidden charges.)*"
+                )
+
+            # 3. Custom Storage Bed
+            if any(k in p_lower for k in ["bed", "palang", "પલંગ", "पलंग"]):
+                if lang == "gu":
+                    return (
+                        f"અમારા *Custom Storage Bed* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *ક્વીન પ્લેટફોર્મ બેડ (આશરે 6.5x5 ફૂટ)*: *₹26,000 નેટ* (હાર્ડવુડ પ્લાય, 1mm લેમિનેટ અને ૨ સ્ટોરેજ ડ્રોઅર્સ)\n\n"
+                        f"• *કિંગ હાઇડ્રોલિક બેડ (આશરે 6.5x6 ફૂટ)*: *₹42,000 નેટ* (IS 710 મરીન પ્લાય, હેવી હાઇડ્રોલિક પંપ અને કુશન હેડબોર્ડ)\n\n"
+                        f"*(ડિલિવરી અને ઓન-સાઇટ ફિટિંગ સહિત, કોઈ છુપો ચાર્જ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"हमारे *Custom Storage Bed* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *क्वीन प्लेटफॉर्म बेड (लगभग 6.5x5 फीट)*: *₹26,000 नेट* (हार्डवुड प्लाई, 1mm लैमिनेट और २ बॉटम ड्रॉअर्स)\n\n"
+                        f"• *किंग हाइड्रोलिक बेड (लगभग 6.5x6 फीट)*: *₹42,000 नेट* (IS 710 मरीन प्लाई, हैवी हाइड्रोलिक पंप और कुशन हेडबोर्ड)\n\n"
+                        f"*(डोरस्टेप डिलीवरी और असेंबली सहित, कोई अतिरिक्त चार्ज नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for *Custom Storage Bed* is:\n\n"
+                    f"• *Queen Size Platform Bed (approx 6.5ft x 5ft)*: *₹26,000 net* (Hardwood ply with 1mm laminate & 2 bottom storage drawers)\n\n"
+                    f"• *King Size Hydraulic Bed (approx 6.5ft x 6ft)*: *₹42,000 net* (IS 710 marine ply, heavy-duty hydraulic pump & cushioned headboard)\n\n"
+                    f"*(All-inclusive with doorstep delivery and on-site assembly with zero hidden charges.)*"
+                )
+
+            # 4. Wooden Windows
+            if any(k in p_lower for k in ["window", "windows", "khidki", "khidkhi", "બારી", "बारी", "खिड़की"]):
+                if lang == "gu":
+                    return (
+                        f"અમારી *Custom Wooden Windows* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *સીઝન્ડ સીપી સાગવાન બારી*: *₹1,250 પ્રતિ ચોરસ ફૂટ* (વેધરપ્રૂફ ચોખટ, 5mm ટફન્ડ ગ્લાસ અને SS-304 મચ્છર જાળી શટર સહિત નેટ ભાવ).\n\n"
+                        f"*(કોઈ છુપો ચાર્જ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"हमारी *Custom Wooden Windows* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *सीजन्ड सीपी सागवान खिड़की*: *₹1,250 प्रति स्क्वायर फीट* (वेदरप्रूफ चौखट, 5mm टफन्ड ग्लास और SS-304 मच्छर जाली पल्ले सहित नेट रेट)।\n\n"
+                        f"*(कोई अतिरिक्त चार्ज नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for *Custom Wooden Windows* is:\n\n"
+                    f"• *Seasoned CP Teak (Sagwan) Window*: *₹1,250 per sq. ft.* (Net price including weather-proof frame, 5mm toughened glass, and SS-304 insect mesh shutter).\n\n"
+                    f"*(Zero hidden charges.)*"
+                )
+
+            # 5. Cabinet / Wardrobe / Modular Kitchen / General Sheet-good Millwork
+            if sqft > 0:
+                tot_lam = sqft * 1320
+                tot_pu = sqft * 1680
+                dim_title = f" ({dim_str}, {sqft} ચોરસ ફૂટ)" if lang == "gu" else (f" ({dim_str}, {sqft} स्क्वायर फीट)" if lang == "hi" else f" ({dim_str}, {sqft} sq.ft.)")
+                if lang == "gu":
+                    return (
+                        f"તમારી *{p_name}*{dim_title} નો અમારો છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *1mm એન્ટી-સ્ક્રેચ લેમિનેટ ફિનિશ*: *₹1,320/ચોરસ ફૂટ* → *₹{tot_lam:,} નેટ*\n\n"
+                        f"• *પ્રીમિયમ 4-કોટ PU પોલિશ (ઇટાલિયન ફિનિશ)*: *₹1,680/ચોરસ ફૂટ* → *₹{tot_pu:,} નેટ*\n\n"
+                        f"*(આમાં 18mm IS 710 BWP વોટરપ્રૂફ મરીન પ્લાય, હેટીચ જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ, કારીગરી, ટ્રાન્સપોર્ટ અને ફિટિંગ બધું જ સામેલ છે, કોઈ પણ છુપો ચાર્જ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"आपकी *{p_name}*{dim_title} के लिए हमारा अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *1mm एंटी-स्क्रैच लैमिनेट फिनिश*: *₹1,320/स्क्वायर फीट* → *₹{tot_lam:,} net*\n\n"
+                        f"• *प्रीमियम 4-कोट PU पॉलिश (इटैलियन फिनिश)*: *₹1,680/स्क्वायर फीट* → *₹{tot_pu:,} net*\n\n"
+                        f"*(इसमें 18mm IS 710 BWP वाटरप्रूफ मरीन प्लाई, हेटिच जर्मन सॉफ्ट-क्लोज़ फिटिंग्स, कुशल लेबर, ट्रांसपोर्ट और ऑन-साइट फिटिंग सब शामिल है, कोई अतिरिक्त चार्ज नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for your *{p_name}*{dim_title} is:\n\n"
+                    f"• *1mm Anti-Scratch Laminate Finish*: *₹1,320/sq.ft* → *₹{tot_lam:,} net*\n\n"
+                    f"• *Premium 4-Coat PU Polish (Italian Finish)*: *₹1,680/sq.ft* → *₹{tot_pu:,} net*\n\n"
+                    f"*(Includes 18mm IS 710 BWP Waterproof Marine Ply, Hettich German soft-close fittings, skilled labour, transport, and complete fitting with zero hidden charges.)*"
+                )
+            else:
+                if lang == "gu":
+                    return (
+                        f"અમારી *{p_name}* માટે છેલ્લો અને પાક્કો વર્કશોપ ભાવ:\n\n"
+                        f"• *1mm એન્ટી-સ્ક્રેચ લેમિનેટ ફિનિશ*: *₹1,250 થી ₹1,350 પ્રતિ ચોરસ ફૂટ* (નેટ ફાઇનલ ભાવ)\n\n"
+                        f"• *પ્રીમિયમ 4-કોટ PU પોલિશ (ઇટાલિયન ફિનિશ)*: *₹1,650 થી ₹1,750 પ્રતિ ચોરસ ફૂટ* (નેટ ફાઇનલ ભાવ)\n\n"
+                        f"*(આ અમારો વર્કશોપ-ડાયરેક્ટ આખરી ભાવ છે જેમાં 18mm IS 710 મરીન પ્લાય, હેટીચ જર્મન ફિટિંગ્સ, મજૂરી અને સાઇટ ફિટિંગ બધું જ આવી ગયું, કોઈ છુપો ખર્ચ નથી.)*"
+                    )
+                elif lang == "hi":
+                    return (
+                        f"हमारी *{p_name}* के लिए अंतिम और फाइनल वर्कशॉप रेट:\n\n"
+                        f"• *1mm एंटी-स्क्रैच लैमिनेट फिनिश*: *₹1,250 से ₹1,350 प्रति स्क्वायर फीट* (ऑल-इन्क्लूसिव नेट रेट)\n\n"
+                        f"• *प्रीमियम 4-कोट PU पॉलिश (इटैलियन फिनिश)*: *₹1,650 से ₹1,750 प्रति स्क्वायर फीट* (ऑल-इन्क्लूसिव नेट रेट)\n\n"
+                        f"*(यह हमारा सीधा वर्कशॉप का सबसे वाजिब रेट है जिसमें 18mm IS 710 मरीन प्लाई, हेटिच जर्मन फिटिंग्स, लेबर और फिटिंग सब शामिल है, कोई छिपा हुआ खर्च नहीं है।)*"
+                    )
+                return (
+                    f"Our final workshop-direct price for *{p_name}* is:\n\n"
+                    f"• *1mm Anti-Scratch Laminate Finish*: *₹1,250 – ₹1,350 per sq. ft.* (all-inclusive net price)\n\n"
+                    f"• *Premium 4-Coat PU Polish (Italian Finish)*: *₹1,650 – ₹1,750 per sq. ft.* (all-inclusive net price)\n\n"
+                    f"*(This is our absolute best workshop-direct rate including 18mm IS 710 BWP Marine Ply, Hettich German soft-close fittings, skilled joinery, transport, and on-site installation with zero hidden charges.)*"
+                )
+
         # 3. Customer agreed to schedule a visit or affirmed visit offer ("Haa aa jaiye", "Sure", "Saturday 11:30")
         if (user_is_scheduling or user_is_affirming or has_affirming_phrase) and session.appointment_status != "confirmed":
             session.appointment_status = "requested"

@@ -450,5 +450,42 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertNotIn("બેઠક માપ શું છે", r2["response_text"])
 
 
+    def test_final_price_only_no_timeline_no_questions_no_visiting(self):
+        """Verify that when customer asks 'what your final price', the agent returns ONLY the final price
+        without timeline, without asking dimensions/finish questions, and without proposing a site visit."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500333"
+
+        # Turn 1: Customer asks about cabinet
+        agent.process_message(phone, "Custom Storage Cabinet", customer_name="Priya")
+
+        # Turn 2: Customer asks 'what your final price'
+        r = agent.process_message(phone, "what your final price", customer_name="Priya")
+        reply = r["response_text"]
+
+        # Must contain final workshop rates
+        self.assertIn("1,250", reply)
+        self.assertIn("1,350", reply)
+        self.assertIn("1,650", reply)
+        self.assertIn("1,750", reply)
+
+        # Must NOT contain timeline
+        self.assertNotIn("Timeline", reply)
+        self.assertNotIn("timeline", reply)
+        self.assertNotIn("working days", reply)
+
+        # Must NOT ask dimension or finish questions
+        self.assertNotIn("What are your approximate room", reply)
+        self.assertNotIn("Do you have a preferred finish", reply)
+        self.assertNotIn("1.", reply)
+        self.assertNotIn("2.", reply)
+
+        # Must NOT propose site visit
+        self.assertNotIn("Saturday", reply)
+        self.assertNotIn("Sunday", reply)
+        self.assertNotIn("measurement visit", reply)
+        self.assertNotIn("visit", reply.lower())
+
+
 if __name__ == "__main__":
     unittest.main()
