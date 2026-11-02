@@ -3,38 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workshop Dashboard • Heritage Woodworks</title>
+  <title>Workshop Console • Heritage Woodworks</title>
   <style>
     :root {
-      --wood-dark: #1e1610;
-      --wood-warm: #854d0e;
+      --wood-dark: #0f172a;
+      --wood-primary: #854d0e;
       --wood-light: #fef3c7;
-      --accent: #25d366;
-      --accent-hover: #16a34a;
-      --bg: #0c111d;
-      --card-bg: #161e2e;
-      --border: #283548;
-      --text-main: #f1f5f9;
+      --wood-gold: #f59e0b;
+      --accent-green: #25d366;
+      --accent-blue: #38bdf8;
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-inner: #1e293b;
+      --border: #334155;
+      --border-light: #475569;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
 
     header {
-      background: #111827;
+      background: #0f172a;
       border-bottom: 1px solid var(--border);
       padding: 14px 28px;
       display: flex;
@@ -44,43 +35,24 @@
       gap: 16px;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
+    .brand { display: flex; align-items: center; gap: 14px; }
     .brand-icon {
-      font-size: 28px;
+      font-size: 26px;
       background: rgba(180, 83, 9, 0.2);
       border: 1px solid #b45309;
-      width: 48px;
-      height: 48px;
+      width: 46px;
+      height: 46px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 12px;
     }
+    .brand h1 { font-size: 18px; color: #fff; font-weight: 700; letter-spacing: 0.3px; }
+    .brand p { font-size: 12px; color: var(--text-muted); }
 
-    .brand h1 {
-      font-size: 19px;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    .brand p {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .btn {
-      background: #1f2937;
+      background: #1e293b;
       color: #f3f4f6;
       border: 1px solid var(--border);
       padding: 8px 14px;
@@ -92,326 +64,237 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.2s;
+      transition: all 0.15s;
     }
+    .btn:hover { background: #334155; border-color: #64748b; }
+    .btn-primary { background: #25d366; color: #064e3b; border: none; font-weight: 700; }
+    .btn-primary:hover { background: #22c55e; }
+    .btn-gold { background: #b45309; color: #fff; border: none; }
+    .btn-gold:hover { background: #d97706; }
+    .btn-danger { background: #ef4444; color: #fff; border: none; }
+    .btn-danger:hover { background: #dc2626; }
 
-    .btn:hover {
-      background: #374151;
+    /* Main Tab Navigation */
+    .nav-tabs {
+      display: flex;
+      background: #0f172a;
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      overflow-x: auto;
+      gap: 6px;
     }
-
-    .btn-primary {
-      background: #25d366;
-      color: #064e3b;
+    .tab-btn {
+      background: transparent;
       border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-muted);
+      padding: 14px 18px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.03); }
+    .tab-btn.active {
+      color: #38bdf8;
+      border-bottom-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.05);
     }
 
-    .btn-primary:hover {
-      background: #22c55e;
+    /* Content Area */
+    .tab-content {
+      padding: 24px 28px;
+      max-width: 1650px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
     }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Metric Cards */
-    .metrics-bar {
+    /* Metric Cards Grid */
+    .metrics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
-      padding: 20px 28px 0;
-      max-width: 1600px;
-      margin: 0 auto;
-      width: 100%;
+      margin-bottom: 24px;
     }
-
     .metric-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
+      padding: 18px;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
-
     .metric-icon {
-      font-size: 24px;
-      width: 44px;
-      height: 44px;
+      font-size: 26px;
+      width: 48px;
+      height: 48px;
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #1e293b;
+      background: var(--card-inner);
     }
+    .metric-info h3 { font-size: 24px; font-weight: 700; color: #fff; }
+    .metric-info p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-    .metric-info h3 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .metric-info p {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    /* Three column dashboard layout */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 320px 1fr 380px;
-      gap: 20px;
-      padding: 20px 28px;
-      flex: 1;
-      max-width: 1600px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    @media (max-width: 1200px) {
-      .dashboard-grid {
-        grid-template-columns: 300px 1fr;
-      }
-      .debug-col {
-        grid-column: span 2;
-      }
-    }
-
-    @media (max-width: 800px) {
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-      .debug-col {
-        grid-column: span 1;
-      }
-    }
-
-    .panel {
+    /* Cards and Tables */
+    .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      display: flex;
-      flex-direction: column;
+      border-radius: 12px;
       overflow: hidden;
-      height: 680px;
+      margin-bottom: 24px;
     }
-
-    .panel-header {
-      padding: 14px 18px;
+    .card-header {
+      padding: 16px 20px;
+      background: #131d2e;
       border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #131a29;
-    }
-
-    .panel-header h2 {
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* Customer List */
-    .customer-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .customer-item {
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      background: #101623;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .customer-item:hover {
-      background: #1a2336;
-      border-color: #334155;
-    }
-
-    .customer-item.active {
-      background: #1e293b;
-      border-color: #38bdf8;
-    }
-
-    .customer-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 4px;
-    }
-
-    .customer-name {
-      font-size: 13.5px;
-      font-weight: 600;
-      color: #f8fafc;
-    }
-
-    .badge {
-      font-size: 10.5px;
-      padding: 2px 7px;
-      border-radius: 10px;
-      font-weight: 700;
-    }
-
-    .badge-inquiry {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.4);
-    }
-
-    .badge-appointment {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.4);
-    }
-
-    .customer-snippet {
-      font-size: 12px;
-      color: var(--text-muted);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Center Dossier & Transcript */
-    .dossier-card {
-      padding: 14px 18px;
-      background: #0f172a;
-      border-bottom: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 10px;
-    }
-
-    .dossier-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .dossier-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #94a3b8;
-      font-weight: 700;
-    }
-
-    .dossier-value {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: #38bdf8;
-    }
-
-    .transcript-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 12px;
-      background: #0d131f;
     }
+    .card-header h2 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .card-body { padding: 18px 20px; }
 
-    .turn {
-      max-width: 85%;
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th {
+      background: #162032;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    td { padding: 12px 14px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-stage { background: #1e3a8a; color: #93c5fd; }
+    .badge-confirmed { background: rgba(37, 211, 102, 0.15); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); }
+    .badge-requested { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-rescheduled { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-cancelled { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-handover { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
+    .badge-ai { background: rgba(37, 211, 102, 0.15); color: #86efac; border: 1px solid #22c55e; }
+
+    /* Filters Bar */
+    .filters-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .input-search, .select-filter {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .input-search:focus, .select-filter:focus { border-color: #38bdf8; }
+
+    /* Split layout for chat inspection */
+    .split-grid {
+      display: grid;
+      grid-template-columns: 1fr 450px;
+      gap: 20px;
+    }
+    @media (max-width: 1000px) { .split-grid { grid-template-columns: 1fr; } }
+
+    /* Chat Drawer / Viewer */
+    .chat-box {
+      background: #0b111e;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 600px;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 12px 16px;
+      background: #111a2c;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #070d18;
+    }
+    .bubble {
+      max-width: 82%;
       padding: 10px 14px;
       border-radius: 10px;
-      font-size: 13.5px;
+      font-size: 13px;
       line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
-
-    .turn.user {
-      align-self: flex-start;
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #f1f5f9;
-    }
-
-    .turn.model {
-      align-self: flex-end;
-      background: #064e3b;
-      border: 1px solid #059669;
-      color: #ecfdf5;
-    }
-
-    .turn-meta {
-      font-size: 10px;
-      color: #a7f3d0;
-      margin-top: 4px;
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .manual-reply-box {
-      padding: 12px 16px;
-      background: #111827;
+    .bubble.user { align-self: flex-end; background: #064e3b; color: #d1fae5; border-bottom-right-radius: 2px; }
+    .bubble.model { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid #334155; }
+    .bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+    .chat-input-bar {
+      padding: 12px;
+      background: #111a2c;
       border-top: 1px solid var(--border);
       display: flex;
       gap: 8px;
     }
 
-    .manual-reply-box input {
-      flex: 1;
-      background: #1f2937;
-      border: 1px solid #374151;
-      color: #fff;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      outline: none;
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
     }
-
-    .manual-reply-box input:focus {
-      border-color: #25d366;
-    }
-
-    /* Right debug & audit log column */
-    .log-stream {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      max-width: 500px;
+      width: 90%;
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-      font-size: 11px;
-      background: #090e17;
-    }
-
-    .log-entry {
-      padding: 8px 10px;
-      border-radius: 6px;
-      background: #111726;
-      border-left: 3px solid #3b82f6;
-    }
-
-    .log-entry.AGENT_COMPLETE { border-left-color: #10b981; }
-    .log-entry.WEBHOOK_INBOUND { border-left-color: #f59e0b; }
-    .log-entry.HMAC_SUCCESS { border-left-color: #22c55e; }
-    .log-entry.DEDUPLICATE_SKIP { border-left-color: #8b5cf6; }
-    .log-entry.ERROR { border-left-color: #ef4444; }
-
-    .log-time {
-      color: #64748b;
-      margin-right: 6px;
-    }
-
-    .log-cat {
-      font-weight: 700;
-      color: #93c5fd;
-    }
-
-    .log-msg {
-      color: #cbd5e1;
-      margin-top: 2px;
-      word-break: break-all;
+      gap: 16px;
     }
   </style>
 </head>
@@ -421,339 +304,732 @@
     <div class="brand">
       <div class="brand-icon">🪚</div>
       <div>
-        <h1>Heritage Woodworks • Master Carpenter Workshop Console</h1>
-        <p>Automated WhatsApp Inquiries, Lead Scoping & Measurement Appointments</p>
+        <h1>Heritage Woodworks & Joinery • Workshop Console</h1>
+        <p>Ahmedabad Workshop Operations • Zero-Spill Turnkey Management • Rajesh Sharma</p>
       </div>
     </div>
     <div class="header-actions">
-      <span id="backend-status" class="btn" style="border-color: #22c55e; color: #4ade80;">● Agent Ready</span>
-      <a href="/whatsapp" target="_blank" class="btn btn-primary">💬 Open WhatsApp Web ↗</a>
-      <button class="btn" onclick="fetchData()">🔄 Refresh</button>
-      <a href="/simulator" class="btn">📱 Open WhatsApp Simulator ↗</a>
+      <a href="/simulator" target="_blank" class="btn btn-primary">📱 Open Customer Simulator ↗</a>
+      <a href="/whatsapp" target="_blank" class="btn">💬 WhatsApp Web ↗</a>
+      <button class="btn" onclick="refreshCurrentTab()">🔄 Refresh Data</button>
     </div>
   </header>
 
-  <!-- Metric Overview Cards -->
-  <div class="metrics-bar">
-    <div class="metric-card">
-      <div class="metric-icon" style="color: #38bdf8;">👥</div>
-      <div class="metric-info">
-        <h3 id="stat-inquiries">0</h3>
-        <p>Active Customer Inquiries</p>
+  <!-- Tab Navigation -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-overview')">📈 Business Growth & KPIs</button>
+    <button class="tab-btn" onclick="switchTab('tab-crm')">👥 CRM Leads & Pipeline</button>
+    <button class="tab-btn" onclick="switchTab('tab-calendar')">📅 Site Visits & Appointments</button>
+    <button class="tab-btn" onclick="switchTab('tab-quotations')">💰 Quotations & Admin Approval</button>
+    <button class="tab-btn" onclick="switchTab('tab-catalogue')">🪵 Material Catalogue Manager</button>
+    <button class="tab-btn" onclick="switchTab('tab-growth')">🚀 Lead Nurture & Follow-Ups</button>
+  </nav>
+
+  <main class="tab-content">
+
+    <!-- 1. BUSINESS GROWTH OVERVIEW -->
+    <div id="tab-overview" class="tab-pane active">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon" style="color:#38bdf8;">📥</div>
+          <div class="metric-info">
+            <h3 id="stat-total-leads">--</h3>
+            <p>Total Customer Inquiries</p>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="color:#f59e0b;">⏳</div>
+          <div class="metric-info">
+            <h3 id="stat-active-leads">--</h3>
+            <p>Active Pipeline Leads</p>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="color:#25d366;">🏆</div>
+          <div class="metric-info">
+            <h3 id="stat-conversion-rate">--%</h3>
+            <p>Deal Conversion Rate</p>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="color:#10b981;">💵</div>
+          <div class="metric-info">
+            <h3 id="stat-won-revenue">₹--</h3>
+            <p>Approved Won Revenue</p>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon" style="color:#eab308;">💼</div>
+          <div class="metric-info">
+            <h3 id="stat-pipeline-val">₹--</h3>
+            <p>Pending Pipeline Value</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="card">
+          <div class="card-header">
+            <h2>📍 Top Ahmedabad Localities (Lead Demand)</h2>
+          </div>
+          <div class="card-body" id="localities-list" style="display:flex; flex-direction:column; gap:10px;">
+            Loading locality demand...
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>🪵 Furniture Demand Breakdown</h2>
+          </div>
+          <div class="card-body" id="furniture-list" style="display:flex; flex-direction:column; gap:10px;">
+            Loading furniture distribution...
+          </div>
+        </div>
       </div>
     </div>
-    <div class="metric-card">
-      <div class="metric-icon" style="color: #fbbf24;">📐</div>
-      <div class="metric-info">
-        <h3 id="stat-appointments">0</h3>
-        <p>Site Measurement Requests</p>
+
+    <!-- 2. CRM LEADS & PIPELINE -->
+    <div id="tab-crm" class="tab-pane">
+      <div class="filters-bar">
+        <input type="text" id="crm-search" class="input-search" style="width:260px;" placeholder="Search name, phone, item..." oninput="loadCustomers()">
+        <select id="crm-filter-locality" class="select-filter" onchange="loadCustomers()">
+          <option value="">All Ahmedabad Localities</option>
+          <option value="Bopal">Bopal</option>
+          <option value="Satellite">Satellite</option>
+          <option value="Vastrapur">Vastrapur</option>
+          <option value="Nehrunagar">Nehrunagar</option>
+          <option value="Prahlad Nagar">Prahlad Nagar</option>
+          <option value="Thaltej">Thaltej</option>
+          <option value="Bodakdev">Bodakdev</option>
+          <option value="Gota">Gota</option>
+        </select>
+        <select id="crm-filter-stage" class="select-filter" onchange="loadCustomers()">
+          <option value="">All Pipeline Stages (14 Stages)</option>
+          <option value="NEW_ENQUIRY">1. NEW_ENQUIRY</option>
+          <option value="GREETING">2. GREETING</option>
+          <option value="REQUIREMENT_COLLECTION">3. REQUIREMENT_COLLECTION</option>
+          <option value="PROJECT_DISCOVERY">4. PROJECT_DISCOVERY</option>
+          <option value="BUDGET_DISCUSSION">5. BUDGET_DISCUSSION</option>
+          <option value="ESTIMATION">6. ESTIMATION</option>
+          <option value="VISIT_REQUESTED">7. VISIT_REQUESTED</option>
+          <option value="VISIT_CONFIRMED">8. VISIT_CONFIRMED</option>
+          <option value="QUOTATION_PENDING">9. QUOTATION_PENDING</option>
+          <option value="QUOTATION_SENT">10. QUOTATION_SENT</option>
+          <option value="NEGOTIATION">11. NEGOTIATION</option>
+          <option value="FOLLOW_UP">12. FOLLOW_UP</option>
+          <option value="JOB_WON">13. JOB_WON</option>
+          <option value="JOB_LOST">14. JOB_LOST</option>
+        </select>
+        <a href="/api/crm/export.csv" target="_blank" class="btn btn-gold" style="margin-left:auto;">📥 Export All Leads to CSV</a>
+      </div>
+
+      <div class="split-grid">
+        <div class="card" style="margin-bottom:0;">
+          <div class="card-header">
+            <h2>👥 Leads & Customer Accounts</h2>
+            <span id="crm-count-badge" class="badge badge-stage">0 Leads</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Locality</th>
+                  <th>Project / Specs</th>
+                  <th>Stage</th>
+                  <th>Handover Mode</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="crm-table-body">
+                <tr><td colspan="6">Loading customers...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Chat Inspector Drawer -->
+        <div class="chat-box">
+          <div class="chat-header">
+            <div>
+              <strong id="active-chat-name" style="font-size:14px; color:#fff;">Select Customer</strong>
+              <div id="active-chat-phone" style="font-size:11px; color:#94a3b8;">Click View Chat on any customer row</div>
+            </div>
+            <span id="active-chat-handover-status" class="badge badge-ai">🤖 AI Active</span>
+          </div>
+          <div class="chat-messages" id="active-chat-messages">
+            <div style="text-align:center; color:#64748b; margin-top:40px;">Select a lead to inspect conversation history</div>
+          </div>
+          <div class="chat-input-bar">
+            <input type="text" id="manual-reply-input" class="input-search" style="flex:1;" placeholder="Send manual reply as Master Carpenter..." onkeydown="if(event.key==='Enter') sendManualReply()">
+            <button class="btn btn-primary" onclick="sendManualReply()">Send ➤</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="metric-card">
-      <div class="metric-icon" style="color: #4ade80;">🪵</div>
-      <div class="metric-info">
-        <h3 id="stat-materials">0</h3>
-        <p>Custom Specs Captured</p>
+
+    <!-- 3. SITE VISITS & APPOINTMENTS CALENDAR -->
+    <div id="tab-calendar" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>📅 Workshop Laser Measurement Site Visits</h2>
+          <div style="display:flex; gap:10px;">
+            <select id="calendar-filter-status" class="select-filter" onchange="loadAppointments()">
+              <option value="">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="requested">Requested</option>
+              <option value="rescheduled">Rescheduled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <button class="btn btn-primary" onclick="openNewAptModal()">➕ Book New Site Visit</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer Phone</th>
+                <th>Measurement Slot Time</th>
+                <th>Ahmedabad Locality</th>
+                <th>Physical Address</th>
+                <th>Project Scope</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="appointments-table-body">
+              <tr><td colspan="7">Loading site visits...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="metric-card">
-      <div class="metric-icon" style="color: #c084fc;">⚡</div>
-      <div class="metric-info">
-        <h3 id="stat-latency">~120 ms</h3>
-        <p>Avg Agent Generation Speed</p>
+
+    <!-- 4. QUOTATIONS & ADMIN APPROVAL -->
+    <div id="tab-quotations" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>💰 Transparent Cost Quotations & BOQ Breakdown</h2>
+          <span style="font-size:12px; color:#94a3b8;">Admin approval strictly required for final discounts & project signoffs</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Quotation ID</th>
+                <th>Customer</th>
+                <th>Project Type</th>
+                <th>Dimensions / Sq.Ft</th>
+                <th>Turnkey Total (₹)</th>
+                <th>Tier Level</th>
+                <th>Approval Status</th>
+                <th>Admin Action</th>
+              </tr>
+            </thead>
+            <tbody id="quotations-table-body">
+              <tr><td colspan="8">Loading quotations...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MATERIAL CATALOGUE MANAGER -->
+    <div id="tab-catalogue" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>🪵 Verified Materials & Hardware Benchmark Catalogue</h2>
+          <span style="font-size:12px; color:#94a3b8;">Live rates per sq.ft / unit automatically update all quotation algorithms</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Item ID</th>
+                <th>Specification Name</th>
+                <th>Category</th>
+                <th>Unit</th>
+                <th>Current Benchmark Rate (₹)</th>
+                <th>Effective Date</th>
+                <th>Source</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="catalogue-table-body">
+              <tr><td colspan="8">Loading material catalogue...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. LEAD NURTURE & FOLLOW-UPS -->
+    <div id="tab-growth" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>🚀 Smart Follow-Up & Lead Nurturing Engine</h2>
+          <span style="font-size:12px; color:#94a3b8;">Automated rule triggers: 2h estimate nudge • 24h visit reminder • 48h value-engineering</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Locality</th>
+                <th>Stage</th>
+                <th>Inactivity</th>
+                <th>Nurture Trigger Rule</th>
+                <th>Suggested Craftsman Action</th>
+                <th>Dispatch</th>
+              </tr>
+            </thead>
+            <tbody id="followups-table-body">
+              <tr><td colspan="7">Loading pending follow-ups...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Admin Approval Modal -->
+  <div id="admin-modal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="font-size:17px; color:#fff;">🔐 Admin Authorization Required</h3>
+      <p style="font-size:13px; color:#94a3b8;">Enter the Master Carpenter Admin Password to approve this quotation:</p>
+      <input type="password" id="admin-password-input" class="input-search" placeholder="Enter admin password (e.g. heritage2026)">
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+        <button class="btn" onclick="closeAdminModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmQuotationApproval()">Authorize & Approve ✓</button>
       </div>
     </div>
   </div>
 
-  <!-- Dashboard 3-Column Workspace -->
-  <div class="dashboard-grid">
-    <!-- Column 1: Customer Inquiries -->
-    <div class="panel">
-      <div class="panel-header">
-        <h2>📥 Inbound WhatsApp Leads</h2>
-        <span id="leads-count" style="font-size: 11px; color: #94a3b8;">0 leads</span>
-      </div>
-      <div class="customer-list" id="customer-list">
-        <div style="padding: 24px; text-align: center; color: #64748b; font-size: 12px;">
-          No customer inquiries yet.<br><br>
-          <a href="/simulator" style="color: #38bdf8;">Launch Simulator</a> to test incoming WhatsApp chats.
-        </div>
-      </div>
-    </div>
-
-    <!-- Column 2: Selected Customer Dossier & Live Transcript -->
-    <div class="panel">
-      <div class="panel-header">
-        <h2 id="active-customer-title">💬 Live Consultation Transcript</h2>
-        <span id="active-phone-badge" class="badge badge-inquiry">+91 0000000000</span>
-      </div>
-
-      <!-- Extracted Project Dossier -->
-      <div class="dossier-card">
-        <div class="dossier-item">
-          <span class="dossier-label">Project Type</span>
-          <span class="dossier-value" id="dos-project">Detecting...</span>
-        </div>
-        <div class="dossier-item">
-          <span class="dossier-label">Dimensions</span>
-          <span class="dossier-value" id="dos-dimensions">Pending</span>
-        </div>
-        <div class="dossier-item">
-          <span class="dossier-label">Materials</span>
-          <span class="dossier-value" id="dos-materials">Teak / BWP Ply</span>
-        </div>
-        <div class="dossier-item">
-          <span class="dossier-label">Client Budget</span>
-          <span class="dossier-value" id="dos-budget" style="color: #4ade80;">Not Stated</span>
-        </div>
-        <div class="dossier-item">
-          <span class="dossier-label">Site Visit</span>
-          <span class="dossier-value" id="dos-appointment" style="color: #fbbf24;">None</span>
-        </div>
-      </div>
-
-      <!-- Transcript Feed -->
-      <div class="transcript-scroll" id="transcript-feed">
-        <div style="padding: 30px; text-align: center; color: #64748b;">
-          Select a customer lead from the left to view their consultation history.
-        </div>
-      </div>
-
-      <!-- Master Carpenter Manual Override Box -->
-      <div class="manual-reply-box">
-        <input type="text" id="manual-reply-input" placeholder="Type a manual override message from Master Rajesh..." onkeydown="if(event.key==='Enter') sendManualReply()">
-        <button class="btn btn-primary" onclick="sendManualReply()">Send As Rajesh 🪚</button>
-        <button class="btn" style="background:#25d366; color:#064e3b; border:none; font-weight:700;" onclick="openWhatsAppChat()" title="Open a real WhatsApp chat with your number">💬 WhatsApp</button>
-      </div>
-    </div>
-
-    <!-- Column 3: Live Agent Debug & Webhook Audit Logs -->
-    <div class="panel debug-col">
-      <div class="panel-header">
-        <h2>🛠️ Webhook & Agent Audit Trail</h2>
-        <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="fetchData()">Clear View</button>
-      </div>
-      <div class="log-stream" id="log-stream">
-        <div class="log-entry">
-          <span class="log-time">00:00:00</span>
-          <span class="log-cat">SYSTEM</span>
-          <div class="log-msg">Listening on /simulator and /carpenter...</div>
-        </div>
+  <!-- Catalogue Edit Rate Modal -->
+  <div id="catalogue-modal" class="modal-overlay">
+    <div class="modal">
+      <h3 style="font-size:17px; color:#fff;">✏️ Update Material Catalogue Rate</h3>
+      <p id="catalogue-modal-title" style="font-size:13px; color:#38bdf8;">Item Name</p>
+      <label style="font-size:12px; color:#94a3b8;">New Rate (INR):</label>
+      <input type="number" id="catalogue-new-rate" class="input-search" placeholder="e.g. 125.0">
+      <label style="font-size:12px; color:#94a3b8;">Source / Invoice Reference:</label>
+      <input type="text" id="catalogue-new-source" class="input-search" placeholder="e.g. Supplier Invoice Nov 2026">
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+        <button class="btn" onclick="closeCatalogueModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmCatalogueUpdate()">Save Rate ✓</button>
       </div>
     </div>
   </div>
 
   <script>
-    let currentPhone = null;
-    let allConversations = [];
+    let activePhone = "";
+    let pendingApprovalQid = "";
+    let activeCatalogueItemId = "";
 
-    async function fetchData() {
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+      const btn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.getAttribute("onclick").includes(tabId));
+      if (btn) btn.classList.add("active");
+      const pane = document.getElementById(tabId);
+      if (pane) pane.classList.add("active");
+      refreshCurrentTab();
+    }
+
+    function refreshCurrentTab() {
+      const active = document.querySelector(".tab-pane.active");
+      if (!active) return;
+      if (active.id === "tab-overview") loadOverview();
+      else if (active.id === "tab-crm") loadCustomers();
+      else if (active.id === "tab-calendar") loadAppointments();
+      else if (active.id === "tab-quotations") loadQuotations();
+      else if (active.id === "tab-catalogue") loadCatalogue();
+      else if (active.id === "tab-growth") loadFollowUps();
+    }
+
+    // 1. Overview Loader
+    async function loadOverview() {
       try {
-        // Fetch conversations
-        const resp = await fetch('/api/conversations');
-        const data = await resp.json();
-        if (data.ok) {
-          allConversations = data.conversations;
-          renderCustomerList(allConversations);
-          updateMetrics(allConversations);
+        const res = await fetch("/api/growth/metrics");
+        const json = await res.json();
+        if (!json.ok) return;
+        const m = json.metrics;
+        document.getElementById("stat-total-leads").innerText = m.total_inquiries;
+        document.getElementById("stat-active-leads").innerText = m.active_pipeline_leads;
+        document.getElementById("stat-conversion-rate").innerText = m.conversion_rate_pct + "%";
+        document.getElementById("stat-won-revenue").innerText = "₹" + (m.won_revenue_inr || 0).toLocaleString();
+        document.getElementById("stat-pipeline-val").innerText = "₹" + (m.pipeline_value_inr || 0).toLocaleString();
 
-          if (currentPhone) {
-            const found = allConversations.find(c => c.phone_number === currentPhone);
-            if (found) renderDossierAndTranscript(found);
-          } else if (allConversations.length > 0) {
-            selectCustomer(allConversations[0].phone_number);
+        const locDiv = document.getElementById("localities-list");
+        locDiv.innerHTML = m.top_localities.map(l => `
+          <div style="display:flex; justify-content:space-between; padding:8px 12px; background:#1e293b; border-radius:8px;">
+            <span>📍 ${l.locality}</span>
+            <strong style="color:#38bdf8;">${l.inquiries} inquiries</strong>
+          </div>
+        `).join("") || "<div>No locality data yet</div>";
+
+        const furnDiv = document.getElementById("furniture-list");
+        furnDiv.innerHTML = m.top_furniture_demand.map(f => `
+          <div style="display:flex; justify-content:space-between; padding:8px 12px; background:#1e293b; border-radius:8px;">
+            <span>🪵 ${f.item}</span>
+            <strong style="color:#25d366;">${f.count} requests</strong>
+          </div>
+        `).join("") || "<div>No furniture data yet</div>";
+      } catch (e) {
+        console.error("Overview error:", e);
+      }
+    }
+
+    // 2. CRM Loader
+    async function loadCustomers() {
+      try {
+        const q = document.getElementById("crm-search").value;
+        const loc = document.getElementById("crm-filter-locality").value;
+        const stage = document.getElementById("crm-filter-stage").value;
+        const res = await fetch(`/api/crm/customers?q=${encodeURIComponent(q)}&locality=${encodeURIComponent(loc)}&lead_status=${encodeURIComponent(stage)}`);
+        const data = await res.json();
+        if (!data.ok) return;
+
+        document.getElementById("crm-count-badge").innerText = `${data.count} Leads`;
+        const tbody = document.getElementById("crm-table-body");
+        tbody.innerHTML = data.customers.map(c => {
+          const isHandover = Boolean(c.human_handover);
+          return `
+            <tr>
+              <td>
+                <strong>${c.name || 'Client ' + c.phone.slice(-4)}</strong><br>
+                <span style="font-size:11px; color:#94a3b8;">+${c.phone}</span>
+              </td>
+              <td>${c.locality || '<span style="color:#64748b">Ahmedabad</span>'}</td>
+              <td>
+                <div style="font-weight:600; color:#38bdf8;">${c.project_type || 'Custom Woodwork'}</div>
+                <div style="font-size:11px; color:#94a3b8;">${c.dimensions || ''}</div>
+              </td>
+              <td><span class="badge badge-stage">${c.lead_status || 'NEW_ENQUIRY'}</span></td>
+              <td>
+                <button class="btn ${isHandover ? 'btn-danger' : 'btn-primary'}" style="padding:4px 10px; font-size:11px;"
+                        onclick="toggleHandover('${c.phone}', ${!isHandover})">
+                  ${isHandover ? '👨‍🔧 Master Active' : '🤖 AI Active'}
+                </button>
+              </td>
+              <td>
+                <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="viewChat('${c.phone}', '${c.name || 'Client ' + c.phone.slice(-4)}', ${isHandover})">
+                  💬 View Chat
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join("") || '<tr><td colspan="6">No customers found</td></tr>';
+      } catch (e) {
+        console.error("CRM error:", e);
+      }
+    }
+
+    async function toggleHandover(phone, enable) {
+      try {
+        const res = await fetch("/api/handover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: phone, human_handover: enable })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          loadCustomers();
+          if (activePhone === phone) {
+            updateHandoverBadge(enable);
           }
         }
+      } catch (e) {
+        alert("Error toggling handover: " + e);
+      }
+    }
 
-        // Fetch logs
-        const logResp = await fetch('/api/logs');
-        const logData = await logResp.json();
-        if (logData.ok) {
-          renderLogs(logData.logs);
+    function updateHandoverBadge(isHandover) {
+      const badge = document.getElementById("active-chat-handover-status");
+      if (isHandover) {
+        badge.className = "badge badge-handover";
+        badge.innerText = "👨‍🔧 Master Handover Active";
+      } else {
+        badge.className = "badge badge-ai";
+        badge.innerText = "🤖 AI Active";
+      }
+    }
+
+    async function viewChat(phone, name, isHandover) {
+      activePhone = phone;
+      document.getElementById("active-chat-name").innerText = name;
+      document.getElementById("active-chat-phone").innerText = "+" + phone;
+      updateHandoverBadge(isHandover);
+
+      const msgDiv = document.getElementById("active-chat-messages");
+      msgDiv.innerHTML = '<div style="color:#64748b; text-align:center; margin-top:20px;">Loading chat...</div>';
+
+      try {
+        const res = await fetch(`/api/conversations/${phone}`);
+        const data = await res.json();
+        if (data.ok && data.conversation && data.conversation.history) {
+          msgDiv.innerHTML = data.conversation.history.map(m => `
+            <div class="bubble ${m.role}">
+              <div>${m.text}</div>
+              <div class="bubble-meta">${new Date((m.timestamp || Date.now()) * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            </div>
+          `).join("") || '<div style="color:#64748b; text-align:center;">No message history yet</div>';
+          msgDiv.scrollTop = msgDiv.scrollHeight;
         }
-      } catch (err) {
-        console.error("Failed to load dashboard data", err);
+      } catch (e) {
+        msgDiv.innerHTML = '<div style="color:#ef4444;">Failed to load messages</div>';
       }
-    }
-
-    function updateMetrics(conversations) {
-      document.getElementById('stat-inquiries').textContent = conversations.length;
-      document.getElementById('leads-count').textContent = `${conversations.length} leads`;
-
-      let appointments = 0;
-      let materialsCount = 0;
-
-      conversations.forEach(c => {
-        if (c.appointment_status !== 'none' || c.appointment_slot) appointments++;
-        if (c.preferred_materials && c.preferred_materials.length > 0) materialsCount += c.preferred_materials.length;
-      });
-
-      document.getElementById('stat-appointments').textContent = appointments;
-      document.getElementById('stat-materials').textContent = materialsCount;
-    }
-
-    function renderCustomerList(conversations) {
-      const container = document.getElementById('customer-list');
-      if (conversations.length === 0) {
-        container.innerHTML = `
-          <div style="padding: 24px; text-align: center; color: #64748b; font-size: 12px;">
-            No customer inquiries yet.<br><br>
-            <a href="/simulator" style="color: #38bdf8;">Launch Simulator</a> to test incoming WhatsApp chats.
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = '';
-      conversations.forEach(c => {
-        const item = document.createElement('div');
-        item.className = `customer-item ${c.phone_number === currentPhone ? 'active' : ''}`;
-        item.onclick = () => selectCustomer(c.phone_number);
-
-        const lastMsg = c.history.length > 0 ? c.history[c.history.length - 1].text : 'New inquiry';
-        const isAppt = c.appointment_status !== 'none';
-
-        item.innerHTML = `
-          <div class="customer-header">
-            <span class="customer-name">${c.customer_name || 'Customer ' + c.phone_number}</span>
-            <span class="badge ${isAppt ? 'badge-appointment' : 'badge-inquiry'}">
-              ${c.project_type || (isAppt ? 'Site Visit' : 'Inquiry')}
-            </span>
-          </div>
-          <div style="font-size: 11px; color: #64748b; margin-bottom: 3px;">+91 ${c.phone_number}</div>
-          <div class="customer-snippet">${lastMsg.replace(/[\*\n]/g, ' ')}</div>
-        `;
-        container.appendChild(item);
-      });
-    }
-
-    function selectCustomer(phone) {
-      currentPhone = phone;
-      document.querySelectorAll('.customer-item').forEach(el => {
-        el.classList.toggle('active', el.innerHTML.includes(phone));
-      });
-      const conv = allConversations.find(c => c.phone_number === phone);
-      if (conv) renderDossierAndTranscript(conv);
-    }
-
-    function renderDossierAndTranscript(c) {
-      document.getElementById('active-customer-title').textContent = `💬 ${c.customer_name || 'Customer'}`;
-      document.getElementById('active-phone-badge').textContent = `+91 ${c.phone_number}`;
-
-      document.getElementById('dos-project').textContent = c.project_type || 'General Inquiry';
-      document.getElementById('dos-dimensions').textContent = c.dimensions || 'Pending';
-      document.getElementById('dos-materials').textContent = (c.preferred_materials && c.preferred_materials.length > 0)
-        ? c.preferred_materials.join(', ')
-        : 'Solid Teak / Marine Ply';
-      document.getElementById('dos-budget').textContent = c.customer_budget
-        ? `₹${Number(c.customer_budget).toLocaleString()} (${c.negotiation_stage || 'Noted'})`
-        : 'Not Stated';
-      document.getElementById('dos-appointment').textContent = c.appointment_slot
-        ? `${c.appointment_slot} (${c.appointment_status})`
-        : (c.appointment_status === 'requested' ? 'Requested' : 'None');
-
-      const feed = document.getElementById('transcript-feed');
-      feed.innerHTML = '';
-
-      c.history.forEach(turn => {
-        const bubble = document.createElement('div');
-        bubble.className = `turn ${turn.role}`;
-        const timeStr = turn.timestamp ? new Date(turn.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-
-        bubble.innerHTML = `
-          <div>${turn.text.replace(/\*(.*?)\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
-          <div class="turn-meta">
-            <span>${turn.role === 'user' ? 'Customer' : 'Rajesh (Master)'}</span>
-            <span>${timeStr} ${turn.source ? `• ${turn.source}` : ''}</span>
-          </div>
-        `;
-        feed.appendChild(bubble);
-      });
-
-      feed.scrollTop = feed.scrollHeight;
-    }
-
-    function getMyWhatsAppNumber() {
-      const raw = (localStorage.getItem('my_wa_number') || '').trim();
-      if (raw) {
-        return raw.replace(/[^\d]/g, '');
-      }
-      const entered = prompt(
-        "Enter the real WhatsApp number to chat with (with country code, digits only):\nExample: 919876543210"
-      );
-      if (!entered) return '';
-      const clean = entered.replace(/[^\d]/g, '');
-      if (clean) {
-        localStorage.setItem('my_wa_number', clean);
-      }
-      return clean;
-    }
-
-    function openWhatsAppChat() {
-      const phone = getMyWhatsAppNumber();
-      if (!phone) {
-        alert("No WhatsApp number provided.");
-        return;
-      }
-      window.open(`https://wa.me/${phone}`, '_blank');
     }
 
     async function sendManualReply() {
-      if (!currentPhone) {
-        alert("Please select a customer first.");
-        return;
-      }
-      const input = document.getElementById('manual-reply-input');
+      const input = document.getElementById("manual-reply-input");
       const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-
-      // Record the manual reply in the session transcript
+      if (!activePhone || !text) return;
+      input.value = "";
       try {
-        const resp = await fetch('/api/manual_reply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: currentPhone, text: text })
+        const res = await fetch("/api/manual_reply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: activePhone, text: text })
         });
-        const resJson = await resp.json();
-        if (resJson.ok) {
-          fetchData();
-        } else {
-          alert("Error sending reply: " + resJson.error);
+        const data = await res.json();
+        if (data.ok) {
+          viewChat(activePhone, document.getElementById("active-chat-name").innerText, true);
         }
-      } catch (err) {
-        alert("Request error: " + err.message);
-      }
-
-      // Open WhatsApp Web with the message pre-filled so it can be delivered
-      const recipient = getMyWhatsAppNumber();
-      if (recipient) {
-        const encoded = encodeURIComponent(text);
-        window.open(`https://wa.me/${recipient}?text=${encoded}`, '_blank');
+      } catch (e) {
+        alert("Send error: " + e);
       }
     }
 
-    function renderLogs(logs) {
-      const container = document.getElementById('log-stream');
-      container.innerHTML = '';
-      logs.slice(-50).forEach(log => {
-        const el = document.createElement('div');
-        el.className = `log-entry ${log.category}`;
-        el.innerHTML = `
-          <div>
-            <span class="log-time">${log.time_str}</span>
-            <span class="log-cat">[${log.category}]</span>
-          </div>
-          <div class="log-msg">${log.message}</div>
-        `;
-        container.appendChild(el);
+    // 3. Appointments Loader
+    async function loadAppointments() {
+      try {
+        const st = document.getElementById("calendar-filter-status").value;
+        const res = await fetch(`/api/appointments?status=${encodeURIComponent(st)}`);
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const tbody = document.getElementById("appointments-table-body");
+        tbody.innerHTML = data.appointments.map(a => `
+          <tr>
+            <td><strong>+${a.phone}</strong></td>
+            <td><strong style="color:#38bdf8;">${a.slot_time}</strong></td>
+            <td>📍 ${a.locality || 'Ahmedabad'}</td>
+            <td style="max-width:240px; font-size:12px;">${a.address || '<span style="color:#eab308">Awaiting address from client</span>'}</td>
+            <td>${a.project_scope || 'General Site Measurement'}</td>
+            <td><span class="badge badge-${a.status}">${a.status}</span></td>
+            <td>
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="reschedulePrompt('${a.phone}')">Reschedule</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="cancelPrompt('${a.phone}')">Cancel</button>
+            </td>
+          </tr>
+        `).join("") || '<tr><td colspan="7">No appointments booked</td></tr>';
+      } catch (e) {
+        console.error("Calendar error:", e);
+      }
+    }
+
+    async function reschedulePrompt(phone) {
+      const newSlot = prompt("Enter new measurement slot (e.g. Sunday at 4:00 PM):", "Sunday at 4:00 PM");
+      if (!newSlot) return;
+      const res = await fetch("/api/appointments/reschedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, new_slot: newSlot })
       });
-      container.scrollTop = container.scrollHeight;
+      loadAppointments();
     }
 
-    // Auto-refresh poll every 3 seconds
-    fetchData();
-    setInterval(fetchData, 3000);
+    async function cancelPrompt(phone) {
+      const reason = prompt("Reason for cancellation:", "Customer postponed renovation");
+      if (reason === null) return;
+      const res = await fetch("/api/appointments/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, reason })
+      });
+      loadAppointments();
+    }
+
+    // 4. Quotations Loader
+    async function loadQuotations() {
+      try {
+        const res = await fetch("/api/quotations");
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const tbody = document.getElementById("quotations-table-body");
+        tbody.innerHTML = data.quotations.map(q => {
+          const isApproved = q.status === "approved";
+          return `
+            <tr>
+              <td><code>${q.quotation_id}</code></td>
+              <td>+${q.phone}</td>
+              <td><strong>${q.project_type}</strong></td>
+              <td>${q.dimensions || '--'} (${q.sqft || 0} sq.ft.)</td>
+              <td><strong style="color:#25d366; font-size:14px;">₹${(q.total_amount || 0).toLocaleString()}</strong></td>
+              <td><span class="badge badge-stage">${q.level}</span></td>
+              <td><span class="badge ${isApproved ? 'badge-confirmed' : 'badge-requested'}">${q.status}</span></td>
+              <td>
+                ${isApproved ? '<span style="color:#22c55e; font-weight:700;">✓ Approved</span>' :
+                  `<button class="btn btn-gold" style="padding:4px 10px; font-size:11px;" onclick="openAdminModal('${q.quotation_id}')">🔐 Authorize</button>`
+                }
+              </td>
+            </tr>
+          `;
+        }).join("") || '<tr><td colspan="8">No quotations recorded</td></tr>';
+      } catch (e) {
+        console.error("Quotations error:", e);
+      }
+    }
+
+    function openAdminModal(qid) {
+      pendingApprovalQid = qid;
+      document.getElementById("admin-password-input").value = "";
+      document.getElementById("admin-modal").style.display = "flex";
+    }
+
+    function closeAdminModal() {
+      document.getElementById("admin-modal").style.display = "none";
+    }
+
+    async function confirmQuotationApproval() {
+      const pwd = document.getElementById("admin-password-input").value;
+      if (!pwd) return alert("Password required");
+      try {
+        const res = await fetch("/api/quotations/approve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${pwd}`
+          },
+          body: JSON.stringify({ quotation_id: pendingApprovalQid, admin_key: pwd })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert("Quotation approved successfully!");
+          closeAdminModal();
+          loadQuotations();
+        } else {
+          alert("Approval failed: " + (data.error || "Incorrect password"));
+        }
+      } catch (e) {
+        alert("Error approving quotation: " + e);
+      }
+    }
+
+    // 5. Material Catalogue Loader
+    async function loadCatalogue() {
+      try {
+        const res = await fetch("/api/catalogue");
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const tbody = document.getElementById("catalogue-table-body");
+        tbody.innerHTML = data.items.map(it => `
+          <tr>
+            <td><code>${it.item_id}</code></td>
+            <td><strong>${it.name}</strong><br><span style="font-size:11px; color:#94a3b8;">${it.description || ''}</span></td>
+            <td><span class="badge badge-stage">${it.category}</span></td>
+            <td>${it.unit}</td>
+            <td><strong style="color:#f59e0b; font-size:14px;">₹${it.rate.toLocaleString()}</strong></td>
+            <td>${it.effective_date}</td>
+            <td style="font-size:11px; color:#94a3b8;">${it.source}</td>
+            <td>
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="openCatalogueModal('${it.item_id}', '${it.name}', ${it.rate}, '${it.source}')">
+                ✏️ Edit Rate
+              </button>
+            </td>
+          </tr>
+        `).join("") || '<tr><td colspan="8">No catalogue items found</td></tr>';
+      } catch (e) {
+        console.error("Catalogue error:", e);
+      }
+    }
+
+    function openCatalogueModal(id, name, rate, source) {
+      activeCatalogueItemId = id;
+      document.getElementById("catalogue-modal-title").innerText = `${name} (${id})`;
+      document.getElementById("catalogue-new-rate").value = rate;
+      document.getElementById("catalogue-new-source").value = source;
+      document.getElementById("catalogue-modal").style.display = "flex";
+    }
+
+    function closeCatalogueModal() {
+      document.getElementById("catalogue-modal").style.display = "none";
+    }
+
+    async function confirmCatalogueUpdate() {
+      const rate = parseFloat(document.getElementById("catalogue-new-rate").value);
+      const source = document.getElementById("catalogue-new-source").value;
+      if (isNaN(rate)) return alert("Valid rate required");
+
+      try {
+        const res = await fetch("/api/catalogue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_id: activeCatalogueItemId, rate: rate, source: source })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeCatalogueModal();
+          loadCatalogue();
+        }
+      } catch (e) {
+        alert("Update error: " + e);
+      }
+    }
+
+    // 6. Follow-Ups Loader
+    async function loadFollowUps() {
+      try {
+        const res = await fetch("/api/growth/follow_ups");
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const tbody = document.getElementById("followups-table-body");
+        tbody.innerHTML = data.pending.map(f => `
+          <tr>
+            <td><strong>${f.name}</strong><br><span style="font-size:11px; color:#94a3b8;">+${f.phone}</span></td>
+            <td>📍 ${f.locality}</td>
+            <td><span class="badge badge-stage">${f.stage}</span></td>
+            <td><strong style="color:#eab308;">${f.elapsed_hours}h ago</strong></td>
+            <td><code>${f.rule}</code></td>
+            <td style="font-size:12px;">${f.suggested_action}</td>
+            <td>
+              <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="dispatchFollowUp('${f.phone}')">
+                💬 Send Nudge
+              </button>
+            </td>
+          </tr>
+        `).join("") || '<tr><td colspan="7" style="color:#22c55e; text-align:center; padding:20px;">✓ All customer follow-ups are up to date!</td></tr>';
+      } catch (e) {
+        console.error("Followups error:", e);
+      }
+    }
+
+    async function dispatchFollowUp(phone) {
+      if (!confirm(`Dispatch automated craftsman follow-up to +${phone}?`)) return;
+      try {
+        const res = await fetch("/api/growth/send_follow_up", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          alert("Follow-up sent successfully!\n\n" + d.text);
+          loadFollowUps();
+        }
+      } catch (e) {
+        alert("Dispatch error: " + e);
+      }
+    }
+
+    // Initial Load
+    window.addEventListener("DOMContentLoaded", () => {
+      loadOverview();
+    });
   </script>
 </body>
 </html>

@@ -739,6 +739,7 @@ class CustomerSession:
     site_address: Optional[str] = None
     human_handover: bool = False
     answered_fields: Set[str] = field(default_factory=set)
+    just_confirmed_booking: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -1107,7 +1108,7 @@ class CarpenterAgent:
         }
         affirmative_words = {
             "yes", "yeah", "yep", "sure", "ok", "okay", "yup", "done", "please", "pls",
-            "confirm", "confirmed", "go ahead", "why not", "sounds good", "perfect",
+            "confirm", "confirmed", "go ahead", "why not", "sounds good", "perfect", "good", "fine", "works", "suits",
             "haa", "ha", "haan", "han", "hnn", "theek", "achha", "bilkul", "avashya",
             "હા", "હાજી", "ચાલશે", "બરાબર", "પાક્કું", "ચોક્કસ",
             "हाँ", "हां", "हाँजी", "ठीक है", "चलेगा", "पक्का", "ज़रूर", "अवश्य"
@@ -1233,7 +1234,7 @@ class CarpenterAgent:
             and not has_affirming_phrase
             and not bool(words.intersection(affirmative_words))
             and not has_scheduling_word
-            and not (has_slot_time and len(words) <= 3)
+            and not has_slot_time
             and not any(c in text_lower for c in ["cancel", "nahi aana", "rehne do", "nathi joiye", "nathi karvu", "dont want", "no thanks", "stop"])
             and not any(q in text_lower for q in ["price", "cost", "rate", "bhav", "kitna", "ketla", "final price", "last price", "discount"])
             and not words.issubset({"hi", "hello", "hey", "namaste", "kem", "cho", "good", "morning", "evening"})
@@ -1250,9 +1251,11 @@ class CarpenterAgent:
         )
         if has_detected_address:
             session.appointment_status = "confirmed"
+            session.just_confirmed_booking = True
+            clean_addr = user_text.strip()
+            session.site_address = clean_addr
             if not session.appointment_slot:
                 session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
-            clean_addr = user_text.strip()
             if not any(n.startswith("address:") for n in session.notes):
                 session.notes.append(f"address: {clean_addr}")
 
@@ -1341,7 +1344,7 @@ class CarpenterAgent:
             and not has_affirming_phrase
             and not bool(words.intersection(affirmative_words))
             and not user_is_scheduling
-            and not (has_time_slot and len(words) <= 3)
+            and not has_time_slot
             and not any(c in text_lower for c in ["cancel", "nahi aana", "rehne do", "nathi joiye", "nathi karvu", "dont want", "no thanks", "stop"])
             and not any(q in text_lower for q in ["price", "cost", "rate", "bhav", "kitna", "ketla", "final price", "last price", "discount"])
             and not words.issubset({"hi", "hello", "hey", "namaste", "kem", "cho", "good", "morning", "evening"})
@@ -1455,11 +1458,12 @@ class CarpenterAgent:
             )
 
         # 2. Booking confirmed when customer provides a specific address or day/time slot with address
-        if has_address:
+        if getattr(session, "just_confirmed_booking", False) or has_address:
+            session.just_confirmed_booking = False
             session.appointment_status = "confirmed"
             slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
             project_name = session.project_type or ("કસ્ટમ ફર્નિચર" if lang == "gu" else ("कस्टम फर्नीचर" if lang == "hi" else "custom woodwork"))
-            addr_text = user_text.strip()
+            addr_text = session.site_address or user_text.strip()
             if not any(n.startswith("address:") for n in session.notes):
                 session.notes.append(f"address: {addr_text}")
             if lang == "gu":

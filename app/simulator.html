@@ -590,24 +590,40 @@
       <div class="card">
         <div class="card-title">
           <span>⚡ One-Click Carpentry Inquiries</span>
-          <span style="font-size: 11px; color: #38bdf8;">Click to simulate customer query</span>
+          <span style="font-size: 11px; color: #38bdf8;">Click to test specific scenarios</span>
         </div>
         <div class="scenario-grid">
-          <button class="scenario-btn" onclick="sendQuick('Namaste! We are renovating our kitchen and need an L-shaped modular setup (10x8 ft) in BWP Marine Ply with Acrylic finish.')">
-            <strong>🍳 Modular Kitchen Inquiry</strong>
-            <span>10x8 ft, Marine Ply, Acrylic</span>
+          <button class="scenario-btn" onclick="sendQuick('I want to make 3 sofa')">
+            <strong>🛋️ 3-Seater Sofa Set</strong>
+            <span>"I want to make 3 sofa"</span>
           </button>
-          <button class="scenario-btn" onclick="sendQuick('Looking for an 8-seater handcrafted dining table in genuine CP Teak (Sagwan) wood with matching chairs.')">
-            <strong>🪵 Solid Teak Dining Table</strong>
-            <span>8-seater, Burma/CP Teak wood</span>
+          <button class="scenario-btn" onclick="sendQuick('અમારે 10x10 કેબિનેટ બનાવવી છે')">
+            <strong>📐 ગુજરાતી 10x10 કેબિનેટ</strong>
+            <span>"અમારે 10x10 કેબિનેટ બનાવવી છે"</span>
           </button>
-          <button class="scenario-btn" onclick="sendQuick('We need a floor-to-ceiling wardrobe for master bedroom, roughly 12 ft wide by 9 ft height, sliding doors with PU polish.')">
-            <strong>🛏️ Master Bedroom Wardrobe</strong>
-            <span>12x9 ft, sliding doors, PU polish</span>
+          <button class="scenario-btn" onclick="sendQuick('Modular Kitchen in Vastrapur 10x8 ft')">
+            <strong>🍳 Vastrapur Modular Kitchen</strong>
+            <span>10x8 ft, Vastrapur locality</span>
           </button>
-          <button class="scenario-btn" onclick="sendQuick('Can your team visit our apartment this Saturday morning around 11:30 AM for laser measurements?')">
-            <strong>📐 Schedule Site Visit</strong>
-            <span>Laser measurement booking</span>
+          <button class="scenario-btn" onclick="sendQuick('what your final price')">
+            <strong>💰 Final Net Price</strong>
+            <span>"what your final price" (direct quote)</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('3 windows in Nehrunagar')">
+            <strong>🚪 3 Windows in Nehrunagar</strong>
+            <span>3 Teak windows + locality</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('Saturday 11:30 is good')">
+            <strong>📅 Confirm Visit Slot</strong>
+            <span>"Saturday 11:30 is good"</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('gneshplaza B wing, nehrunager,ahmedabad')">
+            <strong>📍 Share Visit Address</strong>
+            <span>"gneshplaza B wing, nehrunager,ahmedabad"</span>
+          </button>
+          <button class="scenario-btn" onclick="sendQuick('Here are the photos of my room space')">
+            <strong>📸 Room Photos (Virtual Quote)</strong>
+            <span>"Here are the photos of my room"</span>
           </button>
         </div>
       </div>
@@ -634,7 +650,7 @@
             <input type="tel" id="my-wa-number" placeholder="e.g. 919876543210"
                    style="flex:1; background:#0f172a; border:1px solid #475569; color:#f8fafc; padding:10px 14px; border-radius:8px; font-size:13px; outline:none;">
           </div>
-          <div id="wa-number-preview" style="font-size: 11px; color: #f59e0b; word-break: break-all;">
+          <div id="wa-number-preview" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: #38bdf8; background: #0b1120; padding: 8px 12px; border-radius: 6px; border: 1px solid #1e293b; word-break: break-all;">
             Enter a customer number to generate a chat link
           </div>
 
