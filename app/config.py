@@ -73,6 +73,7 @@ class Config:
     # Workshop Metadata
     WORKSHOP_NAME: str = os.getenv("WORKSHOP_NAME", "Heritage Woodworks & Joinery")
     CARPENTER_NAME: str = os.getenv("CARPENTER_NAME", "Rajesh Sharma")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "heritage2026")
 
     @property
     def is_whatsapp_configured(self) -> bool:

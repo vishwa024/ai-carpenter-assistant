@@ -15,6 +15,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 from app.config import config
+from app.crm import crm, detect_ahmedabad_locality
+from app.pricing import pricing_engine
+from app.state_machine import state_machine, ConversationStage
 
 logger = logging.getLogger("carpenter.agent")
 
@@ -718,7 +721,7 @@ class CustomerSession:
     language: str = "en"  # "en", "gu", "hi"
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
-    history: List[Dict[str, str]] = field(default_factory=list)  # [{"role": "user"|"model", "text": "..."}]
+    history: List[Dict[str, Any]] = field(default_factory=list)  # [{"role": "user"|"model", "text": "..."}]
     project_type: Optional[str] = None
     dimensions: Optional[str] = None
     preferred_materials: List[str] = field(default_factory=list)
@@ -728,17 +731,27 @@ class CustomerSession:
     appointment_slot: Optional[str] = None
     consultation_mode: str = "in_person"  # "in_person" or "virtual"
     notes: List[str] = field(default_factory=list)
+    # Phase 1: State Machine & CRM integration
+    lead_status: str = "NEW_ENQUIRY"
+    locality: Optional[str] = None
+    site_address: Optional[str] = None
+    human_handover: bool = False
+    answered_fields: Set[str] = field(default_factory=set)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if isinstance(d.get("answered_fields"), set):
+            d["answered_fields"] = list(d["answered_fields"])
+        return d
 
 
 class SessionStore:
     """Thread-safe multi-turn session repository."""
 
-    def __init__(self) -> None:
+    def __init__(self, persist_db: bool = False) -> None:
         self._sessions: Dict[str, CustomerSession] = {}
         self._lock = threading.Lock()
+        self.persist_db = persist_db
 
     def get_or_create(self, phone_number: str, customer_name: Optional[str] = None) -> CustomerSession:
         with self._lock:
@@ -753,10 +766,44 @@ class SessionStore:
                 valid_name = None
 
             if clean_phone not in self._sessions:
-                self._sessions[clean_phone] = CustomerSession(
-                    phone_number=clean_phone,
-                    customer_name=valid_name or f"Client {clean_phone[-4:]}",
-                )
+                # Hydrate from persistent SQLite CRM if enabled
+                db_cust = None
+                if self.persist_db:
+                    try:
+                        db_cust = crm.get_customer(clean_phone)
+                    except Exception:
+                        pass
+
+                if db_cust:
+                    stored_history = []
+                    try:
+                        stored_history = crm.get_conversation_history(clean_phone)
+                    except Exception:
+                        pass
+                    sess = CustomerSession(
+                        phone_number=clean_phone,
+                        customer_name=valid_name or db_cust.get("name") or f"Client {clean_phone[-4:]}",
+                        language=db_cust.get("language") or "en",
+                        created_at=db_cust.get("created_at") or time.time(),
+                        updated_at=db_cust.get("updated_at") or time.time(),
+                        project_type=db_cust.get("project_type"),
+                        dimensions=db_cust.get("dimensions"),
+                        preferred_materials=db_cust.get("preferred_materials") or [],
+                        customer_budget=db_cust.get("budget"),
+                        consultation_mode=db_cust.get("consultation_mode") or "in_person",
+                        lead_status=db_cust.get("lead_status") or "NEW_ENQUIRY",
+                        locality=db_cust.get("locality"),
+                        human_handover=bool(db_cust.get("human_handover", False)),
+                        notes=[db_cust.get("notes")] if db_cust.get("notes") else [],
+                        history=stored_history,
+                    )
+                else:
+                    sess = CustomerSession(
+                        phone_number=clean_phone,
+                        customer_name=valid_name or f"Client {clean_phone[-4:]}",
+                    )
+                self._sessions[clean_phone] = sess
+
             session = self._sessions[clean_phone]
             if valid_name and session.customer_name != valid_name:
                 session.customer_name = valid_name
@@ -852,6 +899,11 @@ class CarpenterAgent:
         """Extract project specifications and scheduling intent from conversation text."""
         text_lower = user_text.lower()
         words = set(re.findall(r"\b\w+\b", text_lower))
+
+        # Extract Ahmedabad locality if present
+        loc = detect_ahmedabad_locality(user_text)
+        if loc:
+            session.locality = loc
 
         # Detect and persist language
         detected_lang = detect_language(user_text)
@@ -2258,6 +2310,18 @@ class CarpenterAgent:
         session = self.sessions.get_or_create(sender_phone, customer_name)
         session.updated_at = time.time()
 
+        # 1. Human Handover Mode check (suppress AI auto-replies when artisan is active)
+        if getattr(session, "human_handover", False):
+            logger.info(f"[HANDOVER SUPPRESSED] AI auto-reply suppressed for {session.phone_number} (Master Carpenter in control)")
+            return {
+                "recipient_id": session.phone_number,
+                "response_text": "",
+                "suppressed": True,
+                "source": "human_handover",
+                "latency_ms": 0,
+                "session": session.to_dict(),
+            }
+
         # Append incoming message to history
         user_turn = {
             "role": "user",
@@ -2271,12 +2335,24 @@ class CarpenterAgent:
         # Extract metadata
         self._extract_project_metadata(session, message_text)
 
+        # Sync state machine enquiry memory
+        mem = state_machine.get_or_create(session.phone_number, session.customer_name)
+        mem.project_type = session.project_type
+        mem.dimensions = session.dimensions
+        mem.preferred_materials = session.preferred_materials
+        mem.customer_budget = session.customer_budget
+        mem.human_handover = session.human_handover
+        mem.locality = session.locality
+
         response_text = ""
         source = "domain_engine"
 
         # Real-time Master Carpenter Engine (Executes in <5ms to guarantee 3-4s WhatsApp replies with typing presence)
         response_text = self._generate_fallback_response(session, message_text)
         source = "master_carpenter_engine"
+
+        # Update stage transition
+        session.lead_status = state_machine.evaluate_transition(mem, message_text)
 
         # Store model response in session
         session.history.append(
@@ -2289,6 +2365,45 @@ class CarpenterAgent:
         )
 
         latency_ms = int((time.time() - start_time) * 1000)
+
+        # Persist conversation turns and customer profile to SQLite via CRM
+        if getattr(self.sessions, "persist_db", False):
+            try:
+                crm.get_or_create_customer(
+                    phone=session.phone_number,
+                    name=session.customer_name,
+                    language=session.language,
+                )
+                crm.append_message(
+                    phone=session.phone_number,
+                    role="user",
+                    text=message_text,
+                    media_info=media_info,
+                    stage=session.lead_status,
+                    source="whatsapp_inbound",
+                )
+                crm.append_message(
+                    phone=session.phone_number,
+                    role="model",
+                    text=response_text,
+                    stage=session.lead_status,
+                    source=source,
+                    latency_ms=latency_ms,
+                )
+                crm.update_customer(
+                    phone=session.phone_number,
+                    name=session.customer_name,
+                    language=session.language,
+                    locality=session.locality,
+                    lead_status=session.lead_status,
+                    project_type=session.project_type,
+                    dimensions=session.dimensions,
+                    preferred_materials=session.preferred_materials,
+                    consultation_mode=session.consultation_mode,
+                    budget=session.customer_budget,
+                )
+            except Exception as err:
+                logger.error(f"Error syncing CRM persistence: {err}")
 
         result = {
             "recipient_id": session.phone_number,
@@ -2305,4 +2420,4 @@ class CarpenterAgent:
 
 
 # Global singleton agent
-carpenter_agent = CarpenterAgent()
+carpenter_agent = CarpenterAgent(SessionStore(persist_db=True))

@@ -24,6 +24,10 @@ import urllib.parse
 
 from app.agent import carpenter_agent
 from app.config import config
+from app.crm import crm
+from app.database import db
+from app.pricing import pricing_engine
+from app.state_machine import state_machine
 from app.whatsapp import whatsapp_channel, WHATSAPP_WEB_URL
 
 # Ensure UTF-8 output on Windows consoles to prevent cp1252 charmap encoding errors
@@ -162,6 +166,22 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
 
     server_version = "CarpenterAssistant/1.0"
 
+    def _is_admin_authenticated(self, payload: Optional[Dict[str, Any]] = None) -> bool:
+        """Verify admin credentials for sensitive management actions."""
+        expected = config.ADMIN_PASSWORD
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer ") and auth_header[7:].strip() == expected:
+            return True
+        if self.headers.get("X-Admin-Key") == expected:
+            return True
+        if payload and isinstance(payload, dict):
+            if payload.get("admin_key") == expected or payload.get("password") == expected:
+                return True
+        cookie_header = self.headers.get("Cookie", "")
+        if f"admin_session={expected}" in cookie_header:
+            return True
+        return False
+
     def _send_json(self, status_code: int, data: Any) -> None:
         """Send JSON response with appropriate headers."""
         body = json.dumps(data, indent=2).encode("utf-8")
@@ -283,6 +303,57 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # 3. REST API Routes
+        if path == "/api/crm/customers":
+            query = query_params.get("q", [""])[0] or None
+            locality = query_params.get("locality", [""])[0] or None
+            lead_status = query_params.get("lead_status", [""])[0] or None
+            lead_source = query_params.get("lead_source", [""])[0] or None
+            sort_by = query_params.get("sort_by", ["updated_at"])[0]
+            ascending = query_params.get("ascending", ["false"])[0].lower() in ("true", "1")
+            limit = int(query_params.get("limit", [100])[0])
+            offset = int(query_params.get("offset", [0])[0])
+
+            customers = crm.list_customers(
+                query=query,
+                locality=locality,
+                lead_status=lead_status,
+                lead_source=lead_source,
+                sort_by=sort_by,
+                ascending=ascending,
+                limit=limit,
+                offset=offset,
+            )
+            self._send_json(200, {"ok": True, "customers": customers, "count": len(customers)})
+            return
+
+        elif path == "/api/crm/export.csv":
+            csv_data = crm.export_csv()
+            body = csv_data.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="heritage_crm_customers.csv"')
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        elif path == "/api/catalogue":
+            category = query_params.get("category", [""])[0] or None
+            items = db.get_catalogue(category)
+            self._send_json(200, {"ok": True, "items": items, "count": len(items)})
+            return
+
+        elif path == "/api/quotations":
+            phone = query_params.get("phone", [""])[0] or None
+            status = query_params.get("status", [""])[0] or None
+            if phone:
+                quotes = pricing_engine.get_quotations_for_customer(phone)
+            else:
+                quotes = pricing_engine.get_all_quotations(status)
+            self._send_json(200, {"ok": True, "quotations": quotes, "count": len(quotes)})
+            return
+
         if path == "/api/conversations":
             sessions = carpenter_agent.sessions.get_all()
             self._send_json(200, {"ok": True, "conversations": sessions})
@@ -477,6 +548,93 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
                 "session": agent_result["session"],
             })
             return
+
+        # 3. Admin Quotation Approval Endpoint
+        if path == "/api/quotations/approve":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            if not self._is_admin_authenticated(payload):
+                self._send_json(401, {"ok": False, "error": "Admin authentication required to approve quotations"})
+                return
+
+            qid = str(payload.get("quotation_id", "")).strip()
+            approved_by = str(payload.get("approved_by") or config.CARPENTER_NAME).strip()
+            if not qid:
+                self._send_json(400, {"ok": False, "error": "quotation_id is required"})
+                return
+
+            success = pricing_engine.approve_quotation(qid, approved_by=approved_by)
+            if success:
+                audit_logs.log("QUOTATION_APPROVED", f"Quotation {qid} approved by {approved_by}")
+                self._send_json(200, {"ok": True, "quotation_id": qid, "status": "approved", "approved_by": approved_by})
+            else:
+                self._send_json(404, {"ok": False, "error": f"Quotation {qid} not found"})
+            return
+
+        # 4. Human Handover Toggle Endpoint
+        if path == "/api/handover":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            phone = str(payload.get("phone", "")).strip()
+            enabled = bool(payload.get("human_handover", True))
+            if not phone:
+                self._send_json(400, {"ok": False, "error": "phone is required"})
+                return
+
+            crm.toggle_human_handover(phone, enabled)
+            session = carpenter_agent.sessions.get(phone)
+            if session:
+                session.human_handover = enabled
+            mem = state_machine.get_or_create(phone)
+            mem.human_handover = enabled
+
+            audit_logs.log(
+                "HANDOVER_TOGGLED",
+                f"Human handover {'ACTIVATED' if enabled else 'DEACTIVATED'} for {phone}",
+            )
+            self._send_json(200, {"ok": True, "phone": phone, "human_handover": enabled})
+            return
+
+        # 5. Catalogue Rate / Item Management Endpoint
+        if path == "/api/catalogue":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            action = payload.get("action", "update_rate")
+            item_id = str(payload.get("item_id", "")).strip()
+            if not item_id:
+                self._send_json(400, {"ok": False, "error": "item_id is required"})
+                return
+
+            if action == "add":
+                name = str(payload.get("name", item_id))
+                category = str(payload.get("category", "board"))
+                unit = str(payload.get("unit", "sq.ft"))
+                rate = float(payload.get("rate", 0.0))
+                source = str(payload.get("source", "Admin Update"))
+                desc = str(payload.get("description", ""))
+                db.add_catalogue_item(item_id, name, category, unit, rate, source=source, description=desc)
+                audit_logs.log("CATALOGUE_ADD", f"Added item {item_id} at ₹{rate}/{unit}")
+                self._send_json(200, {"ok": True, "message": "Item added", "item_id": item_id})
+                return
+            else:
+                rate = float(payload.get("rate", 0.0))
+                source = str(payload.get("source", "Workshop Rate Update"))
+                updated = db.update_catalogue_rate(item_id, rate, source=source)
+                audit_logs.log("CATALOGUE_UPDATE", f"Updated {item_id} rate to ₹{rate}")
+                self._send_json(200, {"ok": True, "item_id": item_id, "updated": updated, "rate": rate})
+                return
 
         # 3. Manual Master Reply from Carpenter Dashboard
         if path == "/api/manual_reply":
