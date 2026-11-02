@@ -743,14 +743,23 @@ class SessionStore:
     def get_or_create(self, phone_number: str, customer_name: Optional[str] = None) -> CustomerSession:
         with self._lock:
             clean_phone = phone_number.strip().lstrip("+")
+            invalid_names = {
+                "others", "other", "customer", "client", "user", "admin", "contact",
+                "unknown", "test", "demo", "none", "null", "false", "true", "undefined",
+                "whatsapp", "someone", "person", "guest", "friend", "caller", "profile"
+            }
+            valid_name = customer_name.strip() if customer_name else None
+            if valid_name and (valid_name.lower() in invalid_names or valid_name.lower().startswith("client")):
+                valid_name = None
+
             if clean_phone not in self._sessions:
                 self._sessions[clean_phone] = CustomerSession(
                     phone_number=clean_phone,
-                    customer_name=customer_name or f"Client {clean_phone[-4:]}",
+                    customer_name=valid_name or f"Client {clean_phone[-4:]}",
                 )
             session = self._sessions[clean_phone]
-            if customer_name and session.customer_name != customer_name:
-                session.customer_name = customer_name
+            if valid_name and session.customer_name != valid_name:
+                session.customer_name = valid_name
             return session
 
     def get(self, phone_number: str) -> Optional[CustomerSession]:
@@ -2044,41 +2053,82 @@ class CarpenterAgent:
         is_window_inquiry = any(w in text_lower for w in ["khidkhi", "khidki", "khidkiya", "khidkiyan", "window", "windows", "bari", "બારી", "बारी", "खिड़की", "खिड़कियां", "खिडकी"])
         if is_window_inquiry and not session.dimensions:
             session.project_type = "Custom Wooden Windows"
+            qty_match = re.search(r"\b(\d+)\s*(?:windows?|khidki|khidkhi|bari|બારી|बारी|खिड़की|खिडकी)\b", text_lower) or re.search(r"(?:make|build|need|want|chahiye|જોઈએ|બનાવવી)\s*(\d+)", text_lower)
+            qty = int(qty_match.group(1)) if qty_match else 1
+            if qty > 1:
+                price_en = f"• *Approximate Turnkey Budget*: ~₹18,000 – ₹22,000 per window (~₹{qty * 18000:,} – ₹{qty * 22000:,} for {qty} windows in standard 4x4 ft size)\n• *Timeline*: *10 to 14 working days*"
+                price_hi = f"• *अनुमानित टर्न-की बजट*: लगभग ₹18,000 – ₹22,000 प्रति खिड़की (मानक 4x4 फीट साइज में {qty} खिड़कियों का लगभग ₹{qty * 18000:,} – ₹{qty * 22000:,})\n• *अनुमानित समय*: *10 से 14 कार्य दिवस*"
+                price_gu = f"• *અંદાજિત ટર્ન-કી બજેટ*: આશરે ₹18,000 – ₹22,000 પ્રતિ બારી (સ્ટાન્ડર્ડ 4x4 ફૂટ સાઈઝમાં {qty} બારીઓનું આશરે ₹{qty * 18000:,} – ₹{qty * 22000:,})\n• *અંદાજિત સમય*: *10 થી 14 કામકાજના દિવસો*"
+            else:
+                price_en = "• *Approximate Turnkey Budget*: ₹18,000 – ₹22,000 per standard 4x4 ft window (or ~₹1,200 – ₹1,350/sq.ft)\n• *Timeline*: *10 to 14 working days*"
+                price_hi = "• *अनुमानित टर्न-की बजट*: ₹18,000 – ₹22,000 प्रति मानक 4x4 फीट खिड़की (या लगभग ₹1,200 – ₹1,350/स्क्वायर फीट)\n• *अनुमानित समय*: *10 से 14 कार्य दिवस*"
+                price_gu = "• *અંદાજિત ટર્ન-કી બજેટ*: ₹18,000 – ₹22,000 પ્રતિ સ્ટાન્ડર્ડ 4x4 ફૂટ બારી (અથવા આશરે ₹1,200 – ₹1,350/ચોરસ ફૂટ)\n• *અંદાજિત સમય*: *10 થી 14 કામકાજના દિવસો*"
+
             if lang == "gu":
                 return (
-                    f"નમસ્તે {name_title}! 🙏 બારી (Wooden Windows) માટે ખૂબ સરસ!\n\n"
-                    f"અમે સીઝન્ડ સીપી સાગવાન (Teak Wood) માં વેધરપ્રૂફ ચોખટ, 5mm ગ્લાસ અને એસએસ મચ્છર જાળી શટર સાથે ટકાઉ બારીઓ બનાવીએ છીએ.\n\n"
+                    f"નમસ્તે {name_title}! 🙏 કસ્ટમ વુડન વિન્ડોઝ (Wooden Windows) માટે ખૂબ સરસ!\n\n"
+                    f"{price_gu}\n"
+                    f"• *કારીગરી*: સીઝન્ડ સીપી સાગવાન (CP Teak) માં વેધરપ્રૂફ ચોખટ, 5mm ટફન્ડ ગ્લાસ અને SS-304 મચ્છર જાળી શટર સહિત.\n\n"
                     f"તમારી બારીઓનું અંદાજિત માપ શું છે (જેમ કે 4x4 ફૂટ કે 5x4 ફૂટ)? 📐\n"
-                    f"અને શું તમારે મચ્છર જાળી વાળો પલ્લો પણ સાથે બનાવવો છે? 🪵✨"
+                    f"*(જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે જગ્યાનો ફોટો પણ શેર કરી શકો છો! 📸)*"
                 )
             elif lang == "hi":
                 return (
-                    f"नमस्ते {name_title}! 🙏 खिड़की (Wooden Windows) के लिए बहुत बढ़िया!\n\n"
-                    f"हम सीजन्ड सीपी सागवान (Teak Wood) या शीशम में वेदरप्रूफ चौखट, 5mm टफन्ड ग्लास और स्टेनलेस स्टील (SS-304) मच्छर जाली वाले पल्लों के साथ मजबूत खिड़कियां बनाते हैं।\n\n"
+                    f"नमस्ते {name_title}! 🙏 कस्टम वुडन विंडो (Wooden Windows) के लिए बहुत बढ़िया!\n\n"
+                    f"{price_hi}\n"
+                    f"• *कारीगरी*: सीजन्ड सीपी सागवान (CP Teak) में वेदरप्रूफ चौखट, 5mm टफन्ड ग्लास और SS-304 मच्छर जाली पल्ले सहित।\n\n"
                     f"आपकी खिड़कियों का अंदाज़न साइज़ क्या है (जैसे 4x4 फीट या 5x4 फीट)? 📐\n"
-                    f"और क्या आपको जाली वाला पल्ला भी साथ में चाहिए? 🪵✨"
+                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप जगह की फोटो भी शेयर कर सकते हैं! 📸)*"
                 )
             return (
                 f"Namaste {name_title}! 🙏 Great to hear regarding your custom wooden windows!\n\n"
-                f"We craft window frames and sashes in seasoned CP Teak (Sagwan) with 5mm toughened glass and stainless steel (SS-304) insect mesh shutters.\n\n"
+                f"{price_en}\n"
+                f"• *Craftsmanship*: Seasoned CP Teak (Sagwan) frame & sashes with 5mm toughened glass and SS-304 insect mesh shutters.\n\n"
                 f"What are the approximate dimensions of your windows (e.g., 4x4 ft or 5x4 ft)? 📐\n"
-                f"And would you also like the mosquito mesh shutter included? 🪵✨"
+                f"*(Tip: You can also share a photo of your window spaces right here for an instant quote! 📸)*"
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
         if session.project_type and not session.dimensions and session.appointment_status not in ("requested", "confirmed"):
             p_name = session.project_type
+            p_lower = p_name.lower()
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
+
+            # Item-specific questions (never ask seating size for cabinets or wardrobes!)
+            if any(k in p_lower for k in ["sofa", "couch", "સોફા", "सोफा"]):
+                ask_q_en = "What seating size are you planning (e.g., 3-seater, 5-seater 3+1+1, or L-shape sectional)? 🪵"
+                ask_q_hi = "आप कितने सीटर का सोफा बनवाना चाहते हैं (जैसे 3-सीटर, 5-सीटर 3+1+1, या L-शेप)? 🪵"
+                ask_q_gu = "તમે કેટલા સીટરનો સોફો બનાવવા માંગો છો (જેમ કે 3-સીટર, 5-સીટર 3+1+1, કે L-શેપ)? 🪵"
+            elif any(k in p_lower for k in ["dining", "table", "ટેબલ", "मेज"]):
+                ask_q_en = "Are you looking for a 4-seater, 6-seater, or 8-seater dining set? 🪑"
+                ask_q_hi = "आप कितने सीटर का डाइनिंग सेट बनवाना चाहते हैं (जैसे 4-सीटर, 6-सीटर, या 8-सीटर)? 🪑"
+                ask_q_gu = "તમે કેટલા સીટરનું ડાઇનિંગ સેટ બનાવવા માંગો છો (જેમ કે 4-સીટર, 6-સીટર, કે 8-સીટર)? 🪑"
+            elif any(k in p_lower for k in ["bed", "palang", "પલંગ", "पलंग"]):
+                ask_q_en = "Are you looking for a Queen Size (approx 5x6.5 ft) or King Size (approx 6x6.5 ft)? 🛏️"
+                ask_q_hi = "आप क्वीन साइज़ (लगभग 5x6.5 फीट) या किंग साइज़ (लगभग 6x6.5 फीट) बनवाना चाहते हैं? 🛏️"
+                ask_q_gu = "તમે ક્વીન સાઇઝ (આશરે 5x6.5 ફૂટ) કે કિંગ સાઇઝ (આશરે 6x6.5 ફૂટ) બનાવવા માંગો છો? 🛏️"
+            elif any(k in p_lower for k in ["door", "darwaza", "दरवाजा", "દરવાજો"]):
+                ask_q_en = "What is the approximate size of your door frame (standard is usually 7x3 ft or 7x3.5 ft)? 🚪"
+                ask_q_hi = "दरवाज़े की चौखट का अंदाज़न साइज़ क्या है (आमतौर पर 7x3 फीट या 7x3.5 फीट)? 🚪"
+                ask_q_gu = "દરવાજાની ચોખટનું અંદાજિત માપ શું છે (સામાન્ય રીતે 7x3 ફૂટ કે 7x3.5 ફૂટ)? 🚪"
+            elif any(k in p_lower for k in ["mandir", "temple", "મંદિર", "मंदिर"]):
+                ask_q_en = "What approximate height and width do you have in mind for your mandir? 🪔"
+                ask_q_hi = "मंदिर के लिए अंदाज़न कितनी ऊंचाई और चौड़ाई की जगह है? 🪔"
+                ask_q_gu = "મંદિર માટે તમારી પાસે અંદાજિત કેટલી ઊંચાઈ અને પહોળાઈની જગ્યા છે? 🪔"
+            else:
+                # Storage Cabinet, Wardrobe, Kitchen, TV Unit, Bookshelf, etc.
+                ask_q_en = "What is the approximate size of your wall or space (for example, 6x4 ft or 8x6 ft)? 📐"
+                ask_q_hi = "कमरे या दीवार का अंदाज़न साइज़ क्या है (जैसे 6x4 फीट या 8x6 फीट)? 📐"
+                ask_q_gu = "તમારી દીવાલ અથવા જગ્યાનું અંદાજિત માપ શું છે (જેમ કે 6x4 ફૂટ કે 8x6 ફૂટ)? 📐"
+
             if lang == "gu":
                 name_suffix = f", {name_title}" if first_name else ""
                 return (
                     f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું{name_suffix}! 🪵\n\n"
                     f"• *અંદાજિત બજેટ માર્ગદર્શિકા*: {price_est}\n"
                     f"• *અંદાજિત સમય*: *{timeline_est}*\n\n"
-                    f"સચોટ ભાવ આપવા માટે:\n"
-                    f"1. તમારી અંદાજિત રૂમ/દીવાલની સાઈઝ અથવા બેઠક માપ શું છે? 📐\n"
-                    f"2. તમારી પસંદગીનું ફિનિશ કયું છે (ઓરિજિનલ સાગવાન/શીશમ, કે મરીન પ્લાય સાથે લેમિનેટ/PU)?\n\n"
-                    f"અથવા જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાના ફોટા મોકલીને પણ ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸🪚"
+                    f"{ask_q_gu}\n\n"
+                    f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાનો ફોટો મોકલીને પણ તુરંત ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸)*"
                 )
             elif lang == "hi":
                 name_suffix = f", {name_title}" if first_name else ""
@@ -2086,20 +2136,16 @@ class CarpenterAgent:
                     f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे{name_suffix}! 🪵\n\n"
                     f"• *अनुमानित बजट गाइड*: {price_est}\n"
                     f"• *अनुमानित समय*: *{timeline_est}*\n\n"
-                    f"सही कीमत तय करने के लिए:\n"
-                    f"1. कमरे या दीवार का अंदाज़न साइज़ या सीटिंग साइज़ क्या है? 📐\n"
-                    f"2. आपका पसंदीदा फिनिश कौन सा है (सागवान, शीशम, या मरीन प्लाई के साथ लैमिनेट/PU)?\n\n"
-                    f"या अगर आपके पास विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो भेजकर तुरंत ऑनलाइन एस्टिमेट ले सकते हैं! 📸🪚"
+                    f"{ask_q_hi}\n\n"
+                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे/जगह की फोटो भेजकर तुरंत ऑनलाइन एस्टिमेट ले सकते हैं! 📸)*"
                 )
-            name_suffix = f", {first_name}" if first_name else ""
+            name_suffix = f", {first_name} ji" if first_name else " ji"
             return (
                 f"We would love to handcraft your *{p_name}*{name_suffix}! 🪵\n\n"
                 f"• *Approximate Budget Range*: {price_est}\n"
                 f"• *Estimated Timeline*: *{timeline_est}*\n\n"
-                f"To help us estimate the exact price:\n"
-                f"1. What are your approximate room / wall dimensions or seating size? 📐\n"
-                f"2. Do you have a preferred finish in mind (Solid Teak, Sheesham, or Marine Ply with Laminate/PU)?\n\n"
-                f"Alternatively, if you're busy or don't have time for a visit, you can also share room photos right here in chat for an instant online quote! 📸🪚"
+                f"{ask_q_en}\n\n"
+                f"*(Tip: If you don't have time for a visit, you can also share photos of your space right here in chat for an instant online quote! 📸)*"
             )
         # 8. Material inquiry
         if any(w in text_lower for w in ["teak", "sheesham", "ply", "laminate", "material", "wood", "difference", "લાકડું", "સાગવાન", "લાકડા", "लकड़ी", "सागवान"]):

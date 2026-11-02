@@ -486,6 +486,33 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertNotIn("measurement visit", reply)
         self.assertNotIn("visit", reply.lower())
 
+    def test_windows_quantity_pricing_and_concise_discovery(self):
+        """Verify that '3 windows' returns ballpark turnkey pricing for 3 windows."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500444"
+        r = agent.process_message(phone, "3 windows", customer_name="Priya")
+        reply = r["response_text"]
+
+        self.assertIn("18,000", reply)
+        self.assertIn("22,000", reply)
+        self.assertIn("3 windows", reply)
+        self.assertIn("approximate dimensions", reply.lower())
+
+    def test_cabinet_discovery_concise_and_no_seating_size(self):
+        """Verify that 'cabinate' gives clean discovery without asking for seating size."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919876500555"
+        r = agent.process_message(phone, "cabinate", customer_name="Priya")
+        reply = r["response_text"]
+
+        self.assertIn("Custom Storage Cabinet", reply)
+        self.assertIn("1,200", reply)
+        self.assertIn("1,800", reply)
+        self.assertNotIn("seating size", reply.lower())
+        self.assertNotIn("seating", reply.lower())
+        self.assertNotIn("1.", reply)
+        self.assertNotIn("2.", reply)
+
 
 if __name__ == "__main__":
     unittest.main()
