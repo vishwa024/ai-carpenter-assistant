@@ -293,7 +293,7 @@ def parse_dimension_details(dim_str: Optional[str], text_lower: str = "") -> Dic
     target = f"{dim_str or ''} {text_lower}"
 
     # Check quantity like '2 khidkhi', '2 windows'
-    q_match = re.search(r"(\d+)\s*(?:khidkhi|khidki|windows?|doors?|chairs?|khurshi|kursi|कुर्सी|ખુરશી|ખુરશીઓ|कुर्सियां|kabaat|बारी|બારી|खिड़की|દરવાજા)", target)
+    q_match = re.search(r"(\d+)\s*(?:khidkhi|khidki|windows?|doors?|chairs?|beds?|palang|पलंग|પલંગ|khurshi|kursi|कुर्सी|ખુરશી|ખુરશીઓ|कुर्सियां|kabaat|बारी|બારી|खिड़की|દરવાજા)", target)
     if q_match:
         res["quantity"] = int(q_match.group(1))
 
@@ -964,6 +964,121 @@ def is_cannot_send_photo(text: str) -> bool:
     return False
 
 
+def parse_custom_slot_time(text: str, lang: str = "en") -> Optional[str]:
+    """Parse custom appointment day and time from customer message (e.g., 'sunday 1:00 PM', 'tomorrow 3 pm', 'kal 3 baje')."""
+    text_lower = text.lower()
+    
+    # 1. Extract specific time if present
+    extracted_time = None
+    
+    # Pattern A: HH:MM with optional am/pm or Indic o'clock
+    colon_m = re.search(r"\b([01]?\d:[0-5]\d)\s*(am|pm|a\.m\.|p\.m\.|વાગ્યે|વાગે|બજે|बजे|baje|vagye|vage)?\b", text_lower)
+    if colon_m:
+        raw_t = colon_m.group(1)
+        period = colon_m.group(2) or ""
+        period_str = ""
+        if "am" in period or "a.m." in period:
+            period_str = "AM"
+        elif "pm" in period or "p.m." in period:
+            period_str = "PM"
+        else:
+            h = int(raw_t.split(":")[0])
+            if any(w in text_lower for w in ["morning", "સવારે", "सुबह", "savare", "subah"]):
+                period_str = "AM"
+            elif any(w in text_lower for w in ["afternoon", "evening", "night", "સાંજે", "બપોરે", "दोपहर", "शाम", "saanje", "bapore", "shaam", "dopahar"]) or (1 <= h <= 6):
+                period_str = "PM"
+            elif 7 <= h <= 11:
+                period_str = "AM"
+            elif h == 12:
+                period_str = "PM"
+        extracted_time = f"{raw_t} {period_str}".strip()
+
+    # Pattern B: 1pm, 2 pm, 10 am, 3 baje, 4 vagye (single hour + am/pm or Indic o'clock)
+    if not extracted_time:
+        hour_m = re.search(r"\b([01]?\d)\s*(am|pm|a\.m\.|p\.m\.|વાગ્યે|વાગે|બજે|बजे|baje|vagye|vage)\b", text_lower)
+        if hour_m:
+            raw_h = hour_m.group(1)
+            period = hour_m.group(2)
+            if "am" in period:
+                extracted_time = f"{raw_h}:00 AM"
+            elif "pm" in period:
+                extracted_time = f"{raw_h}:00 PM"
+            else:
+                h_val = int(raw_h)
+                period_str = "AM" if any(w in text_lower for w in ["morning", "સવારે", "सुबह", "savare", "subah"]) or (7 <= h_val <= 11) else "PM"
+                extracted_time = f"{raw_h}:00 {period_str}"
+
+    # 2. Extract day
+    day = None
+    if any(w in text_lower for w in ["sunday", "sun", "રવિવાર", "રવિવારે", "रविवार", "ravivar", "raviwar", "ravivare", "raviware"]):
+        day = "Sunday"
+    elif any(w in text_lower for w in ["saturday", "sat", "શનિવાર", "શનિવારે", "शनिवार", "shanivar", "shaniwar", "shanivare", "shaniware", "weekend"]):
+        day = "Saturday"
+    elif any(w in text_lower for w in ["tomorrow", "કાલે", "કાલ", "कल", "kal", "kale"]):
+        day = "Tomorrow"
+    elif any(w in text_lower for w in ["today", "આજે", "आज", "aaj", "aaje"]):
+        day = "Today"
+    elif any(w in text_lower for w in ["monday", "mon", "સોમવાર", "સોમવારે", "सोमवार", "somvar", "somwar"]):
+        day = "Monday"
+    elif any(w in text_lower for w in ["tuesday", "tue", "મંગળવાર", "મંગળવારે", "मंगलवार", "mangalvar", "mangalwar"]):
+        day = "Tuesday"
+    elif any(w in text_lower for w in ["wednesday", "wed", "બુધવાર", "બુધવારે", "बुधवार", "budhvar", "budhwar"]):
+        day = "Wednesday"
+    elif any(w in text_lower for w in ["thursday", "thu", "ગુરુવાર", "ગુરુવારે", "गुरुवार", "guruvar", "guruwar"]):
+        day = "Thursday"
+    elif any(w in text_lower for w in ["friday", "fri", "શુક્રવાર", "શુક્રવારે", "शुक्रवार", "shukravar", "shukrawar"]):
+        day = "Friday"
+    
+    # 3. Combine day and time appropriately
+    if day == "Sunday":
+        if extracted_time:
+            if lang == "gu":
+                return f"રવિવારે {extracted_time} વાગ્યે (Sunday {extracted_time})"
+            elif lang == "hi":
+                return f"रविवार {extracted_time} बजे (Sunday {extracted_time})"
+            return f"Sunday at {extracted_time}"
+        else:
+            if lang == "gu":
+                return "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)"
+            elif lang == "hi":
+                return "रविवार शाम 4:00 बजे (Sunday 4:00 PM)"
+            return "Sunday at 4:00 PM"
+    elif day == "Saturday":
+        if extracted_time:
+            if lang == "gu":
+                return f"શનિવારે {extracted_time} વાગ્યે (Saturday {extracted_time})"
+            elif lang == "hi":
+                return f"शनिवार {extracted_time} बजे (Saturday {extracted_time})"
+            return f"Saturday at {extracted_time}"
+        else:
+            if lang == "gu":
+                return "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)"
+            elif lang == "hi":
+                return "शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)"
+            return "Saturday at 11:30 AM"
+    elif day == "Tomorrow":
+        if extracted_time:
+            if lang == "gu":
+                return f"કાલે {extracted_time} વાગ્યે (Tomorrow {extracted_time})"
+            elif lang == "hi":
+                return f"कल {extracted_time} बजे (Tomorrow {extracted_time})"
+            return f"Tomorrow at {extracted_time}"
+        else:
+            if lang == "gu":
+                return "કાલે (Tomorrow)"
+            elif lang == "hi":
+                return "कल (Tomorrow)"
+            return "Tomorrow"
+    elif day:
+        if extracted_time:
+            return f"{day} at {extracted_time}"
+        return day
+    elif extracted_time:
+        return f"at {extracted_time}"
+
+    return None
+
+
 class CarpenterAgent:
     """Carpenter AI Agent Brain with Google Gemini integration and domain fallback."""
 
@@ -1316,30 +1431,15 @@ class CarpenterAgent:
                 else:
                     session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
 
-        # Check specific day / time slots
-        sat_label = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if session.language == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if session.language == "hi" else "Saturday at 11:30 AM")
-        sun_label = "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)" if session.language == "gu" else ("रविवार शाम 4:00 बजे (Sunday 4:00 PM)" if session.language == "hi" else "Sunday at 4:00 PM")
-        days_and_slots = [
-            ("saturday", sat_label),
-            ("sunday", sun_label),
-            ("શનિવાર", sat_label),
-            ("રવિવાર", sun_label),
-            ("शनिवार", sat_label),
-            ("रविवार", sun_label),
-            ("11:30", sat_label),
-            ("4 pm", sun_label),
-            ("weekend", sat_label),
-            ("tomorrow", "કાલે (Tomorrow)" if session.language == "gu" else ("कल (Tomorrow)" if session.language == "hi" else "Tomorrow")),
-        ]
-        for slot_kw, slot_val in days_and_slots:
-            if slot_kw in text_lower:
-                if session.appointment_status != "confirmed":
-                    session.appointment_status = "requested"
-                session.appointment_slot = slot_val
-                break
+        # Check specific day / time slots with dynamic custom time parsing
+        custom_slot = parse_custom_slot_time(user_text, session.language)
+        if custom_slot:
+            if session.appointment_status != "confirmed":
+                session.appointment_status = "requested"
+            session.appointment_slot = custom_slot
 
         # Address / Location detection
-        has_slot_time = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am", "4:00"])
+        has_slot_time = bool(parse_custom_slot_time(user_text, session.language)) or any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "શનિવારે", "રવિવારે", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am", "4:00", "1:00", "1pm", "2 pm", "3 pm", "5 pm", "12:00", "2:00"])
         has_detected_address = has_address_marker(user_text) or (
             session.appointment_status == "requested"
             and not has_affirming_phrase
@@ -1451,7 +1551,7 @@ class CarpenterAgent:
         user_is_affirming = (bool(words.intersection(affirmative_words)) or has_affirming_phrase) and (
             prev_agent_offered_visit or session.appointment_status == "requested"
         )
-        has_time_slot = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am"])
+        has_time_slot = bool(parse_custom_slot_time(user_text, lang)) or any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "શનિવારે", "રવિવારે", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am", "4:00", "1:00", "1pm", "2 pm", "3 pm", "5 pm", "12:00", "2:00"])
         has_address = has_address_marker(user_text) or (
             session.appointment_status == "requested"
             and not has_affirming_phrase
@@ -1864,11 +1964,14 @@ class CarpenterAgent:
                     f"*(This is our absolute best workshop-direct rate including 18mm IS 710 BWP Marine Ply, Hettich German soft-close fittings, skilled joinery, transport, and on-site installation with zero hidden charges.)*"
                 )
 
-        # 3. Customer agreed to schedule a visit or affirmed visit offer ("Haa aa jaiye", "Sure", "Saturday 11:30")
+        # 3. Customer agreed to schedule a visit or affirmed visit offer ("Haa aa jaiye", "Sure", "Saturday 11:30", "sunday 1:00 PM")
         if (user_is_scheduling or user_is_affirming or has_affirming_phrase) and session.appointment_status != "confirmed":
             session.appointment_status = "requested"
-            if not session.appointment_slot:
-                if any(w in text_lower for w in ["sunday", "રવિવાર", "रविवार", "4 pm", "સાંજે", "शाम"]):
+            c_slot = parse_custom_slot_time(user_text, lang)
+            if c_slot:
+                session.appointment_slot = c_slot
+            elif not session.appointment_slot:
+                if any(w in text_lower for w in ["sunday", "રવિવાર", "रविवार", "4 pm", "સાંજે", "शામ"]):
                     session.appointment_slot = "રવિવારે સાંજે 4:00 વાગ્યે (Sunday 4:00 PM)" if lang == "gu" else ("रविवार शाम 4:00 बजे (Sunday 4:00 PM)" if lang == "hi" else "Sunday at 4:00 PM")
                 else:
                     session.appointment_slot = "શનિવારે સવારે 11:30 વાગ્યે (Saturday 11:30 AM)" if lang == "gu" else ("शनिवार सुबह 11:30 बजे (Saturday 11:30 AM)" if lang == "hi" else "Saturday at 11:30 AM")
@@ -1876,29 +1979,45 @@ class CarpenterAgent:
             slot_name = session.appointment_slot
             project_context = f" ({session.project_type})" if session.project_type else ""
 
+            alt_hint_en = ""
+            alt_hint_hi = ""
+            alt_hint_gu = ""
+            if not c_slot:
+                if "sunday" in (slot_name or "").lower():
+                    alt_hint_en = "(If Saturday at 11:30 AM works better for you, just let us know!)\n\n"
+                    alt_hint_hi = "(अगर शनिवार सुबह 11:30 बजे का समय ज्यादा सुविधाजनक हो तो वो भी बता सकते हैं।)\n\n"
+                    alt_hint_gu = "(જો શનિવારે સવારે 11:30 વાગ્યાનો સમય વધુ અનુકૂળ હોય તો એ પણ જણાવી શકો છો.)\n\n"
+                elif "saturday" in (slot_name or "").lower():
+                    alt_hint_en = "(If Sunday at 4:00 PM works better for you, just let us know!)\n\n"
+                    alt_hint_hi = "(अगर रविवार शाम 4:00 बजे का समय ज्यादा सुविधाजनक हो तो वो भी बता सकते हैं।)\n\n"
+                    alt_hint_gu = "(જો રવિવારે સાંજે 4:00 વાગ્યાનો સમય વધુ અનુકૂળ હોય તો એ પણ જણાવી શકો છો.)\n\n"
+
             if lang == "gu":
                 return (
                     f"બહુ સરસ! અમે આ *{slot_name}* નો સમય તમારા માટે નોંધી લીધો છે. 📅✨\n\n"
                     f"કૃપા કરીને તમારું પૂરું સરનામું (ફ્લેટ/મકાન નંબર, સોસાયટી/એપાર્ટમેન્ટ) અને નજીકનો લેન્ડમાર્ક જણાવી દેશો જેથી અમારી ટીમ સમયસર પહોંચી શકે. 📍\n\n"
-                    f"(જો રવિવારે સાંજે 4:00 વાગ્યાનો સમય વધુ અનુકૂળ હોય તો એ પણ જણાવી શકો છો.)\n\n"
+                    f"{alt_hint_gu}"
                     f"અમારી માસ્ટર કારીગર ટીમ લેસર મેઝરમેન્ટ ટૂલ્સ અને લાકડા/PU ફિનિશના અસલી સેમ્પલ્સ સાથે લાવશે{project_context}! 📐🪵"
                 )
             elif lang == "hi":
                 return (
                     f"बहुत बढ़िया! हमने इस *{slot_name}* का समय आपके लिए नोट कर लिया है। 📅✨\n\n"
                     f"कृपया अपना पूरा पता (मकान/फ्लैट नंबर, सोसायटी/अपार्टमेंट) और नज़दीकी लैंडमार्क शेयर कर दीजिए ताकि हमारी टीम समय पर पहुँच सके। 📍\n\n"
-                    f"(अगर रविवार शाम 4:00 बजे का समय ज्यादा सुविधाजनक हो तो वो भी बता सकते हैं।)\n\n"
+                    f"{alt_hint_hi}"
                     f"हमारी मास्टर कारिगर टीम लेज़र मेज़रमेंट टूल्स और लकड़ी/PU फिनिश के असली सैंपल्स साथ लाएगी{project_context}! 📐🪵"
                 )
             return (
                 f"Wonderful! We have noted *{slot_name}* for your home visit. 📅✨\n\n"
                 f"Please share your complete address (Flat/House No., Society/Apartment name) and nearest landmark so our team can arrive on time. 📍\n\n"
-                f"(If Sunday at 4:00 PM works better for you, just let us know!)\n\n"
+                f"{alt_hint_en}"
                 f"Our master carpenter team will bring laser measurement tools and physical wood/PU finish swatches{project_context}! 📐🪵"
             )
 
         # 3b. Follow-up reminder if appointment already requested but address pending
         if session.appointment_status == "requested" and not has_address:
+            c_slot_req = parse_custom_slot_time(user_text, lang)
+            if c_slot_req:
+                session.appointment_slot = c_slot_req
             slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
             if lang == "gu":
                 return (
@@ -1915,8 +2034,13 @@ class CarpenterAgent:
                 f"Please share your complete address (Flat/House No., Society/Apartment name) and nearest landmark so our team can arrive on time! 📍"
             )
 
-        # 3c. Reassurance if appointment already confirmed
-        if session.appointment_status == "confirmed":
+        # Check if customer has a new carpentry inquiry (even after appointment confirmation)
+        has_carpentry_inquiry = bool(re.search(r"\b(?:bed|beds|palang|king|queen|hydraulic|cabinet|cabinets|cabinate|cabinates|wardrobe|cupboard|almirah|kabaat|sofa|sofas|chair|chairs|khurshi|kursi|table|mej|dining|kitchen|rasoi|door|doors|darwaza|window|windows|khidki|bari|mandir|temple|pooja|tv unit|bookshelf|ply|marine ply|teak|sheesham|sagwan|laminate|acrylic|pu polish)\b", text_lower)) or any(
+            q in text_lower for q in ["price", "cost", "rate", "bhav", "kitna", "ketla", "final price", "last price", "discount", "quote", "quotation", "બજેટ", "ખર્ચ", "ભાવ", "કિંમત", "बजट", "खर्च", "ભાવ"]
+        ) or is_cannot_send_photo(text_lower)
+
+        # 3c. Reassurance if appointment already confirmed (ONLY when not asking about new carpentry items)
+        if session.appointment_status == "confirmed" and not has_carpentry_inquiry:
             slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
             if lang == "gu":
                 return (
@@ -2215,7 +2339,7 @@ class CarpenterAgent:
             or any(w in text_lower for w in ["seater", "સીટર", "सीटर", "king size", "queen size", "feet", "inch", "l-shape", "l shape"])
         )
 
-        if session.project_type and has_dimensions and session.appointment_status not in ("requested", "confirmed"):
+        if session.project_type and has_dimensions and (session.appointment_status not in ("requested", "confirmed") or has_carpentry_inquiry):
             dim_info = parse_dimension_details(session.dimensions, text_lower)
             quote = calculate_turnkey_quote(session.project_type, dim_info, lang)
             p_name = session.project_type or "Custom Furniture"
@@ -2250,26 +2374,35 @@ class CarpenterAgent:
                 )
             else:
                 price_est, timeline_est = get_price_and_timeline_estimate(session.project_type, session.dimensions, lang)
+                if session.appointment_status == "confirmed":
+                    ask_visit_en = f"*(Since your home visit is already confirmed for *{session.appointment_slot}*, our master artisan team will also inspect this space and bring physical material samples with us! 📐🪵)*"
+                    ask_visit_hi = f"*(नोट: चूंकि आपकी विज़िट पहले से ही *{session.appointment_slot}* के लिए तय है, हमारी टीम इसके लिए भी जगह का सटीक नाप ले लेगी और सैंपल साथ ले आएगी! 📐🪵)*"
+                    ask_visit_gu = f"*(નોંધ: તમારી મુલાકાત *{session.appointment_slot}* માટે પહેલેથી જ નક્કી છે, એટલે અમારી ટીમ આના માટે પણ જગ્યાનું માપ અને મટિરિયલ સેમ્પલ્સ સાથે લાવશે! 📐🪵)*"
+                else:
+                    ask_visit_en = "To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
+                    ask_visit_hi = "सटीक नाप लेने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* 15 मिनट की फ्री विज़िट रख लें? 📐🪵"
+                    ask_visit_gu = "સાચું માપ લેવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી લેસર માપણી મુલાકાત ગોઠવીએ? 📐🪵"
+
                 if lang == "gu":
                     return (
                         f"તમારી *{p_name}* ({dim_str}) ની વિગત મળી ગઈ, {name_title}! 🪵\n\n"
                         f"અમારો અંદાજિત બજેટ ભાવ {price_est} છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. અમે સીઝન્ડ સાગ/શીશમ લાકડું અને હાઈ-ડેન્સિટી કુશન્સ વાપરીએ છીએ.\n\n"
-                        f"સાચું માપ લેવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી લેસર માપણી મુલાકાત ગોઠવીએ? 📐🪵"
+                        f"{ask_visit_gu}"
                     )
                 elif lang == "hi":
                     return (
                         f"आपकी *{p_name}* ({dim_str}) की जानकारी मिल गई, {name_title}! 🪵\n\n"
                         f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। हम सीजन्ड सागवान/शीशम लकड़ी और हाई-डेंसिटी कुशन इस्तेमाल करते हैं।\n\n"
-                        f"सटीक नाप लेने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* 15 मिनट की फ्री विज़िट रख लें? 📐🪵"
+                        f"{ask_visit_hi}"
                     )
                 return (
                     f"Got your specifications for *{p_name}* ({dim_str}), {name_title}! 🪵\n\n"
                     f"Our approximate Budget Guide comes to {price_est}, with a completion Timeline of {timeline_est}. We use seasoned solid timber and 40D high-density cushions with washable covers.\n\n"
-                    f"To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
+                    f"{ask_visit_en}"
                 )
 
         # 6b. Dimensions provided but project type unknown (e.g. user starts by saying '10x10' or '10×10')
-        if has_dimensions and not session.project_type and session.appointment_status not in ("requested", "confirmed"):
+        if has_dimensions and not session.project_type and (session.appointment_status not in ("requested", "confirmed") or has_carpentry_inquiry):
             dim_info = parse_dimension_details(session.dimensions, text_lower)
             sqft = int(dim_info.get("sqft") or 100)
             dim_label = session.dimensions or f"{sqft} sq.ft."
@@ -2359,7 +2492,7 @@ class CarpenterAgent:
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
-        if session.project_type and not session.dimensions and session.appointment_status not in ("requested", "confirmed"):
+        if session.project_type and not session.dimensions and (session.appointment_status not in ("requested", "confirmed") or has_carpentry_inquiry):
             p_name = session.project_type
             p_lower = p_name.lower()
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
@@ -2402,25 +2535,28 @@ class CarpenterAgent:
             if lang == "gu":
                 name_suffix = f", {name_title}" if first_name else ""
                 mat_str = "અમે સીઝન્ડ સાગવાન/શીશમ લાકડું અને ઉત્કૃષ્ટ કારીગરી વાપરીએ છીએ." if is_solid_wood else "અમે 18mm IS 710 વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ જર્મન ફિટિંગ્સ વાપરીએ છીએ."
+                conf_note_gu = f"\n\n*(નોંધ: તમારી મુલાકાત *{session.appointment_slot}* માટે પહેલેથી જ નક્કી છે, એટલે અમારી ટીમ આના માટે પણ જગ્યાનું માપ અને મટિરિયલ સેમ્પલ્સ સાથે લાવશે! 📐🪵)*" if session.appointment_status == "confirmed" else ""
                 return (
                     f"નમસ્તે{name_suffix}! તમારી *{p_name}* બિલકુલ બનાવી આપીશું. 🪵\n\n"
                     f"અમારો અંદાજિત ભાવ {price_est} ની આસપાસ રહે છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. {mat_str}\n\n"
-                    f"{ask_q_gu}"
+                    f"{ask_q_gu}{conf_note_gu}"
                 )
             elif lang == "hi":
                 name_suffix = f", {name_title}" if first_name else ""
                 mat_str = "हम सीजन्ड सागवान/शीशम लकड़ी और बेहतरीन कारीगरी इस्तेमाल करते हैं।" if is_solid_wood else "हम 18mm IS 710 वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स इस्तेमाल करते हैं।"
+                conf_note_hi = f"\n\n*(नोट: आपकी विज़िट पहले से ही *{session.appointment_slot}* के लिए तय है, इसलिए हमारी टीम इसके लिए भी जगह का सटीक नाप और मटेरियल सैंपल साथ ले आएगी! 📐🪵)*" if session.appointment_status == "confirmed" else ""
                 return (
                     f"नमस्ते{name_suffix}! आपकी *{p_name}* बिल्कुल बना देंगे। 🪵\n\n"
                     f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। {mat_str}\n\n"
-                    f"{ask_q_hi}"
+                    f"{ask_q_hi}{conf_note_hi}"
                 )
             name_suffix = f", {first_name} ji" if first_name else " ji"
             mat_str = "We use seasoned solid Teak/Sheesham timber and handcrafted mortise & tenon joinery." if is_solid_wood else "We use 18mm IS 710 waterproof marine ply with Hettich German soft-close fittings."
+            conf_note_en = f"\n\n*(Note: Since your home visit is already confirmed for *{session.appointment_slot}*, our team will also inspect this space and bring physical finish samples with us! 📐🪵)*" if session.appointment_status == "confirmed" else ""
             return (
                 f"Namaste{name_suffix}! We can certainly make your *{p_name}*. 🪵\n\n"
                 f"Our approximate budget comes to around {price_est}, and it takes about {timeline_est}. {mat_str}\n\n"
-                f"{ask_q_en}"
+                f"{ask_q_en}{conf_note_en}"
             )
 
         # 8. Material inquiry

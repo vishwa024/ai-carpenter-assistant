@@ -618,5 +618,72 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertNotIn("1,250", reply3)  # NOT cabinet sq ft rate!
 
 
+
+    def test_custom_appointment_slot_extraction(self):
+        """Verify custom day and time slot extraction preserves user's exact slot across languages."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919999900092"
+
+        # Customer chooses Sunday 1:00 PM explicitly
+        r1 = agent.process_message(phone, "I want to schedule site visit sunday 1:00 PM")
+        s1 = agent.sessions.get(phone)
+        self.assertEqual(s1.appointment_slot, "Sunday at 1:00 PM")
+        self.assertIn("Sunday at 1:00 PM", r1["response_text"])
+        self.assertNotIn("Sunday at 4:00 PM", r1["response_text"])
+
+    def test_post_confirmation_multi_item_inquiries_and_courtesy(self):
+        """Verify asking about new furniture pieces after confirmation returns craftsman quotes,
+        remembers the booked visit slot, and courtesy closing reflects the exact slot."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919999900093"
+
+        # 1. Request visit on Sunday 1:00 PM
+        agent.process_message(phone, "I want to schedule site visit sunday 1:00 PM")
+        # 2. Provide address -> Confirmed
+        r2 = agent.process_message(phone, "gneshplaza B wing, nehrunager,ahmedabad")
+        self.assertIn("Booking confirmed", r2["response_text"])
+        self.assertIn("Sunday at 1:00 PM", r2["response_text"])
+
+        # 3. Inquire about beds after confirmation
+        r3 = agent.process_message(phone, "i want 2 beds king size")
+        self.assertIn("Custom Storage Bed", r3["response_text"])
+        self.assertIn("45,000", r3["response_text"])
+        self.assertIn("Sunday at 1:00 PM", r3["response_text"])
+        self.assertNotIn("Yes, certainly! Your visit is confirmed for", r3["response_text"])
+
+        # 4. Inquire about cabinet after confirmation
+        r4 = agent.process_message(phone, "and cabinate??")
+        self.assertIn("Custom Storage Cabinet", r4["response_text"])
+        self.assertIn("1,200", r4["response_text"])
+        self.assertIn("Sunday at 1:00 PM", r4["response_text"])
+        self.assertNotIn("Yes, certainly! Your visit is confirmed for", r4["response_text"])
+
+        # 5. Ask for final price
+        r5 = agent.process_message(phone, "what your final price")
+        self.assertIn("Custom Storage Cabinet", r5["response_text"])
+        self.assertIn("1,250", r5["response_text"])
+
+        # 6. Courtesy closing
+        r6 = agent.process_message(phone, "ok thankyou")
+        self.assertIn("Sunday at 1:00 PM", r6["response_text"])
+        self.assertNotIn("Saturday at 11:30 AM", r6["response_text"])
+
+    def test_bargaining_followed_by_yes_books_appointment(self):
+        """Verify replying 'yes' after a negotiation compromise pitch proceeds to appointment booking
+        and does not repeat the negotiation pitch."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "919999900094"
+
+        agent.process_message(phone, "I want to make 3 sofa")
+        r2 = agent.process_message(phone, "my budget is 15000")
+        self.assertIn("I respect your budget of *₹15,000*", r2["response_text"])
+
+        r3 = agent.process_message(phone, "yes")
+        reply3 = r3["response_text"]
+        self.assertNotIn("I respect your budget of *₹15,000*", reply3)
+        self.assertIn("home visit", reply3.lower())
+        self.assertIn("address", reply3.lower())
+
+
 if __name__ == "__main__":
     unittest.main()
