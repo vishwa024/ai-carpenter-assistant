@@ -780,6 +780,51 @@ class SessionStore:
             self._sessions.clear()
 
 
+ADDRESS_WORDS = [
+    # Premises, buildings, and unit types
+    "flat", "apartment", "apartments", "tower", "towers", "road", "street",
+    "sector", "phase", "block", "society", "colony", "layout", "nagar", "nagor",
+    "bungalow", "bunglow", "villa", "villas", "circle", "cross", "plaza", "wing",
+    "complex", "arcade", "residency", "heights", "enclave", "building",
+    "floor", "house", "makan", "ghar", "nivas", "niwas", "kunj", "kutir",
+    "lane", "gali", "rasta", "marg", "pole", "pol", "khadki", "plot",
+    "estate", "chawl", "avenue",
+    # Landmarks
+    "opposite", "near", "beside", "behind", "next to", "close to", "in front",
+    # Prominent cities & areas (Gujarat and major metros)
+    "ahmedabad", "amdavad", "surat", "vadodara", "baroda", "rajkot", "gandhinagar",
+    "bhavnagar", "jamnagar", "junagadh", "anand", "nadiad", "morbi", "mehsana",
+    "mumbai", "pune", "delhi", "bangalore", "bengaluru", "hyderabad", "chennai",
+    "nehrunagar", "nehrunager", "satellite", "paldi", "bopal", "south bopal",
+    "gota", "adajan", "vesu", "varachha", "vastrapur", "maninagar", "thaltej",
+    "bodakdev", "navrangpura", "prahladnagar", "chandkheda", "ranip", "ghatlododia",
+    "ghatlodia", "naranpura", "sabarmati", "motera", "memnagar", "ambawadi",
+    "ellisbridge", "vejalpur", "jodhpur", "shilaj", "shela", "science city",
+    "nikol", "naroda", "odhav", "narol", "vatva", "iscon", "sg highway",
+    "s.g. highway", "c.g. road", "cg road", "ashram road", "sindhu bhavan",
+    # Gujarati script
+    "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ", "પ્લાઝા", "વિંગ",
+    "કોમ્પ્લેક્સ", "રેસિડેન્સી", "રેસીડેન્સી", "હાઈટ્સ", "બિલ્ડીંગ", "ઘર",
+    "મકાન", "પાસે", "સામે", "પાછળ", "અમદાવાદ", "સુરત", "વડોદરા", "રાજકોટ",
+    "ગાંધીનગર", "નહેરુનગર", "બોપલ", "સેટેલાઇટ", "ચાંદખેડા", "રાણીપ", "ગોટા",
+    # Hindi script
+    "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल", "प्लाज़ा", "प्लाजा",
+    "विंग", "कॉम्प्लेक्स", "रेसीडेंसी", "रेसिडेंसी", "हाइट्स", "बिल्डिंग",
+    "घर", "मकान", "पास", "सामने", "पीछे", "अहमदाबाद", "सूरत", "वडोदरा",
+    "राजकोट", "गांधीनगर", "नेहरूनगर", "बोपल", "सैटेलाइट"
+]
+ADDRESS_SHORT_WORDS = {"rd", "st", "nr", "opp", "flr", "apt", "bldg"}
+
+def has_address_marker(text: str) -> bool:
+    text_lower = text.lower()
+    words = set(re.findall(r"\b\w+\b", text_lower))
+    if any(marker in text_lower for marker in ADDRESS_WORDS):
+        return True
+    if bool(words.intersection(ADDRESS_SHORT_WORDS)) or "b/h" in text_lower:
+        return True
+    return False
+
+
 class CarpenterAgent:
     """Carpenter AI Agent Brain with Google Gemini integration and domain fallback."""
 
@@ -1087,7 +1132,7 @@ class CarpenterAgent:
             "haa chalega", "ha chalega", "haan chalega", "chalega ji", "chalega", "chalse", "chalshe", "chalshe ji",
             "yes please", "sure come", "come home", "come over", "please come", "come on saturday",
             "come on sunday", "bhej do", "bhejo", "bhejiye", "aajao", "aajaiye", "ha bhai", "haa bhai",
-            "yes come", "ok come", "okay come", "sure", "done"
+            "yes come", "ok come", "okay come"
         ]
         has_affirming_phrase = any(phrase in text_lower for phrase in affirming_phrases)
 
@@ -1128,21 +1173,26 @@ class CarpenterAgent:
                 break
 
         # Address / Location detection
-        address_markers = [
-            "flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block",
-            "society", "colony", "layout", "nagar", "bungalow", "villa", "circle", "cross",
-            "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ",
-            "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल"
-        ]
         has_slot_time = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am", "4:00"])
-        has_detected_address = any(marker in text_lower for marker in address_markers) or (
+        has_detected_address = has_address_marker(user_text) or (
             session.appointment_status == "requested"
-            and any(c.isdigit() for c in user_text)
-            and not has_slot_time
+            and not has_affirming_phrase
+            and not bool(words.intersection(affirmative_words))
+            and not has_scheduling_word
+            and not (has_slot_time and len(words) <= 3)
+            and not any(c in text_lower for c in ["cancel", "nahi aana", "rehne do", "nathi joiye", "nathi karvu", "dont want", "no thanks", "stop"])
+            and not any(q in text_lower for q in ["price", "cost", "rate", "bhav", "kitna", "ketla", "final price", "last price", "discount"])
+            and not words.issubset({"hi", "hello", "hey", "namaste", "kem", "cho", "good", "morning", "evening"})
             and not any(k in text_lower for k in [
                 "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
                 "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
             ])
+            and (
+                any(c.isdigit() for c in user_text)
+                or "," in user_text
+                or "-" in user_text
+                or len(words) >= 2
+            )
         )
         if has_detected_address:
             session.appointment_status = "confirmed"
@@ -1215,7 +1265,7 @@ class CarpenterAgent:
             "haa chalega", "ha chalega", "haan chalega", "chalega ji", "chalega", "chalse", "chalshe", "chalshe ji",
             "yes please", "sure come", "come home", "come over", "please come", "come on saturday",
             "come on sunday", "bhej do", "bhejo", "bhejiye", "aajao", "aajaiye", "ha bhai", "haa bhai",
-            "yes come", "ok come", "okay come", "sure", "done"
+            "yes come", "ok come", "okay come"
         ]
         has_affirming_phrase = any(phrase in text_lower for phrase in affirming_phrases)
         courtesy_words = {
@@ -1232,20 +1282,25 @@ class CarpenterAgent:
             prev_agent_offered_visit or session.appointment_status == "requested"
         )
         has_time_slot = any(w in words for w in ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "weekend", "tomorrow", "morning", "evening", "શનિવાર", "રવિવાર", "शनिवार", "रविवार"]) or any(t in text_lower for t in ["11:30", "11 am", "4 pm", "10 am"])
-        address_markers = [
-            "flat", "apt", "apartment", "tower", "road", "street", "sector", "phase", "block",
-            "society", "colony", "layout", "nagar", "bungalow", "villa", "circle", "cross",
-            "સોસાયટી", "નગર", "રોડ", "બંગલો", "ફ્લેટ", "સર્કલ",
-            "सोसायटी", "नगर", "रोड", "बंगला", "फ्लैट", "सर्कल"
-        ]
-        has_address = any(marker in text_lower for marker in address_markers) or (
+        has_address = has_address_marker(user_text) or (
             session.appointment_status == "requested"
-            and any(c.isdigit() for c in user_text)
-            and not has_time_slot
+            and not has_affirming_phrase
+            and not bool(words.intersection(affirmative_words))
+            and not user_is_scheduling
+            and not (has_time_slot and len(words) <= 3)
+            and not any(c in text_lower for c in ["cancel", "nahi aana", "rehne do", "nathi joiye", "nathi karvu", "dont want", "no thanks", "stop"])
+            and not any(q in text_lower for q in ["price", "cost", "rate", "bhav", "kitna", "ketla", "final price", "last price", "discount"])
+            and not words.issubset({"hi", "hello", "hey", "namaste", "kem", "cho", "good", "morning", "evening"})
             and not any(k in text_lower for k in [
                 "seater", "સીટર", "सीटर", "x", "*", "by", "feet", "inch", "khidki", "khidkhi",
                 "sofa", "table", "wardrobe", "kitchen", "cabinet", "banani", "banvana", "banana"
             ])
+            and (
+                any(c.isdigit() for c in user_text)
+                or "," in user_text
+                or "-" in user_text
+                or len(words) >= 2
+            )
         )
 
         # 1. Post-Booking Confirmation Courtesy (only when customer is closing after confirmation)
@@ -1351,31 +1406,21 @@ class CarpenterAgent:
             slot_name = session.appointment_slot or ("શનિવારે સવારે 11:30 વાગ્યે" if lang == "gu" else ("शनिवार सुबह 11:30 बजे" if lang == "hi" else "Saturday at 11:30 AM"))
             project_name = session.project_type or ("કસ્ટમ ફર્નિચર" if lang == "gu" else ("कस्टम फर्नीचर" if lang == "hi" else "custom woodwork"))
             addr_text = user_text.strip()
+            if not any(n.startswith("address:") for n in session.notes):
+                session.notes.append(f"address: {addr_text}")
             if lang == "gu":
                 return (
-                    f"બુકિંગ પાકું થઈ ગયું! 📅✨\n\n"
-                    f"• *સમય*: *{slot_name}*\n"
-                    f"• *સરનામું*: *{addr_text}*\n"
-                    f"• *કામ*: *{project_name}*\n"
-                    f"• *અમારી ટીમ લાવશે*: લેસર મેઝરમેન્ટ ટેપ અને લાકડાના અસલી સેમ્પલ્સ (સાગવાન, શીશમ, મરીન પ્લાય, PU પોલિશ swatches).\n\n"
-                    f"અમારી માસ્ટર કારીગર ટીમ આવવાના 30 મિનિટ પહેલાં તમને ફોન કરશે. તમને મળવા માટે ઉત્સુક છીએ! 🙏🪵"
+                    f"બુકિંગ પાકું થઈ ગયું! 📅✨ અમે *{slot_name}* ના રોજ તમારા સરનામે (*{addr_text}*) તમારા *{project_name}* માટે પહોંચી જઈશું.\n\n"
+                    f"અમારી ટીમ સાથે લેઝર મેઝરમેન્ટ ટેપ અને લાકડા/PU ફિનિશના અસલી સેમ્પલ્સ (સાગવાન, શીશમ, મરીન પ્લાય, PU પોલિશ swatches) લઈને આવશે. પહોંચવાના ૩૦ મિનિટ પહેલાં તમને ફોન કરીશું. મળવા માટે ઉત્સુક છીએ! 🙏🪵"
                 )
             elif lang == "hi":
                 return (
-                    f"बुकिंग पक्की हो गई! 📅✨\n\n"
-                    f"• *समय*: *{slot_name}*\n"
-                    f"• *पता*: *{addr_text}*\n"
-                    f"• *काम*: *{project_name}*\n"
-                    f"• *हमारी टीम लाएगी*: लेज़र मेज़रमेंट टेप और लकड़ी के असली सैंपल्स (सागवान, शीशम, मरीन प्लाई, PU पॉलिश swatches)।\n\n"
-                    f"हमारी मास्टर कारिगर टीम पहुंचने से 30 मिनट पहले आपको फोन करेगी। आपसे मिलने की प्रतीक्षा रहेगी! 🙏🪵"
+                    f"बुकिंग पक्की हो गई! 📅✨ हम *{slot_name}* को आपके पते (*{addr_text}*) पर *{project_name}* के लिए पहुँच जाएंगे।\n\n"
+                    f"हमारी मास्टर कारिगर टीम साथ में लेज़र मेज़रमेंट टूल्स और लकड़ी/PU फिनिश के असली सैंपल्स (सागवान, शीशम, मरीन प्लाई, PU swatches) लेकर आएगी। आने से 30 मिनट पहले आपको फोन करेंगे। आपसे मिलने की प्रतीक्षा रहेगी! 🙏🪵"
                 )
             return (
-                f"Booking confirmed! 📅✨\n\n"
-                f"• *Appointment*: *{slot_name}*\n"
-                f"• *Location*: *{addr_text}*\n"
-                f"• *Project Scope*: *{project_name}*\n"
-                f"• *What we bring*: Laser measurement tape & physical wood samples (Teak, Sheesham, Marine Ply, PU swatches).\n\n"
-                f"Our master carpenter team will call you 30 minutes before arrival. Looking forward to meeting you! 🙏🪵"
+                f"Booking confirmed! 📅✨ We will visit you on *{slot_name}* at *{addr_text}* for your *{project_name}*.\n\n"
+                f"Our master carpenter team will bring laser measurement tools and physical wood/PU finish samples (Teak, Sheesham, Marine Ply swatches). We will call you 30 minutes before arrival. Looking forward to meeting you! 🙏🪵"
             )
 
         # 4b. Customer asked for Final Price / Net Rate / Best Price (Return Final Price ONLY with zero questions, timeline, or visit pitches)
@@ -2093,24 +2138,32 @@ class CarpenterAgent:
                 ask_q_hi = "कमरे या दीवार का अंदाज़न साइज़ क्या है (जैसे 6x4 फीट या 8x6 फीट)? 📐"
                 ask_q_gu = "તમારી દીવાલ અથવા જગ્યાનું અંદાજિત માપ શું છે (જેમ કે 6x4 ફૂટ કે 8x6 ફૂટ)? 📐"
 
+            is_solid_wood = any(k in p_lower for k in [
+                "sofa", "couch", "dining", "table", "bed", "palang", "mandir", "temple", "door",
+                "સોફા", "ડાઇનિંગ", "ટેબલ", "પલંગ", "મંદિર", "દરવાજો",
+                "सोफा", "डाइनिंग", "मेज", "पलंग", "मंदिर", "दरवाजा"
+            ])
             if lang == "gu":
                 name_suffix = f", {name_title}" if first_name else ""
+                mat_str = "અમે સીઝન્ડ સાગવાન/શીશમ લાકડું અને ઉત્કૃષ્ટ કારીગરી વાપરીએ છીએ." if is_solid_wood else "અમે 18mm IS 710 વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ જર્મન ફિટિંગ્સ વાપરીએ છીએ."
                 return (
                     f"નમસ્તે{name_suffix}! તમારી *{p_name}* બિલકુલ બનાવી આપીશું. 🪵\n\n"
-                    f"અમારો અંદાજિત ભાવ {price_est} ની આસપાસ રહે છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. અમે 18mm IS 710 વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ જર્મન ફિટિંગ્સ વાપરીએ છીએ.\n\n"
+                    f"અમારો અંદાજિત ભાવ {price_est} ની આસપાસ રહે છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. {mat_str}\n\n"
                     f"{ask_q_gu}"
                 )
             elif lang == "hi":
                 name_suffix = f", {name_title}" if first_name else ""
+                mat_str = "हम सीजन्ड सागवान/शीशम लकड़ी और बेहतरीन कारीगरी इस्तेमाल करते हैं।" if is_solid_wood else "हम 18mm IS 710 वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स इस्तेमाल करते हैं।"
                 return (
                     f"नमस्ते{name_suffix}! आपकी *{p_name}* बिल्कुल बना देंगे। 🪵\n\n"
-                    f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। हम 18mm IS 710 वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स इस्तेमाल करते हैं।\n\n"
+                    f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। {mat_str}\n\n"
                     f"{ask_q_hi}"
                 )
             name_suffix = f", {first_name} ji" if first_name else " ji"
+            mat_str = "We use seasoned solid Teak/Sheesham timber and handcrafted mortise & tenon joinery." if is_solid_wood else "We use 18mm IS 710 waterproof marine ply with Hettich German soft-close fittings."
             return (
                 f"Namaste{name_suffix}! We can certainly make your *{p_name}*. 🪵\n\n"
-                f"Our approximate budget comes to around {price_est}, and it takes about {timeline_est}. We use 18mm IS 710 waterproof marine ply with Hettich German soft-close fittings.\n\n"
+                f"Our approximate budget comes to around {price_est}, and it takes about {timeline_est}. {mat_str}\n\n"
                 f"{ask_q_en}"
             )
 

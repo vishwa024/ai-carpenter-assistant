@@ -514,5 +514,44 @@ class TestWhatsAppChannel(unittest.TestCase):
         self.assertNotIn("2.", reply)
 
 
+
+    def test_address_with_plaza_wing_and_no_digits(self):
+        """Verify that address with plaza, wing, and no digits confirms appointment without repeating prompt."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "917600099774"
+        r1 = agent.process_message(phone, "Schedule visit tomorrow", customer_name="Priya")
+        self.assertIn("address", r1["response_text"].lower())
+
+        r2 = agent.process_message(phone, "gneshplaza B wing, nehrunager,ahmedabad", customer_name="Priya")
+        reply = r2["response_text"]
+        session = agent.sessions.get(phone)
+
+        self.assertEqual(session.appointment_status, "confirmed")
+        self.assertIn("Booking confirmed", reply)
+        self.assertIn("gneshplaza", reply)
+        self.assertNotIn("Please share your complete address", reply)
+
+    def test_haa_aa_jaiye_visit_affirmation_and_address(self):
+        """Verify that 'Haa aa jaiye' affirms site visit and following address confirms booking."""
+        agent = CarpenterAgent(SessionStore())
+        phone = "917600099775"
+        agent.process_message(phone, "सोफा बनवाना है")
+        agent.process_message(phone, "5 seater")
+        
+        # Customer says Haa aa jaiye
+        r3 = agent.process_message(phone, "Haa aa jaiye")
+        s3 = agent.sessions.get(phone)
+        self.assertEqual(s3.appointment_status, "requested")
+        self.assertIn("पता", r3["response_text"])
+        self.assertNotIn("अनुमानित बजट गाइड", r3["response_text"])
+
+        # Customer sends address
+        r4 = agent.process_message(phone, "gneshplaza B wing, nehrunager,ahmedabad")
+        s4 = agent.sessions.get(phone)
+        self.assertEqual(s4.appointment_status, "confirmed")
+        self.assertIn("बुकिंग पक्की हो गई", r4["response_text"])
+        self.assertIn("gneshplaza", r4["response_text"])
+
+
 if __name__ == "__main__":
     unittest.main()
