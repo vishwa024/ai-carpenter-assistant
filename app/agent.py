@@ -1661,34 +1661,22 @@ class CarpenterAgent:
             if lang == "gu":
                 return (
                     f"નમસ્તે {name_title}! 🙏\n\n"
-                    f"હેરિટેજ વુડવર્ક્સ (Heritage Woodworks) માં આપનું સ્વાગત છે. હું *રાજેશ શર્મા* (માસ્ટર કારીગર).\n\n"
-                    f"અમે સાગવાન (Teak), શીશમ અને વોટરપ્રૂફ મરીન પ્લાયવુડમાંથી પ્રીમિયમ ફર્નિચર બનાવીએ છીએ:\n\n"
-                    f"• *કબાટ / વોર્ડરોબ* (Hinged / Sliding)\n"
-                    f"• *મોડ્યુલર કિચન* (IS 710 BWP Marine Ply)\n"
-                    f"• *સોલિડ વુડ સોફા સેટ & ડાઇનિંગ ટેબલ*\n"
-                    f"• *મુખ્ય દરવાજા & બારીઓ*\n\n"
-                    f"તમારે તમારા ઘર માટે શું બનાવવું છે? 🪵✨"
+                    f"હું *રાજેશ શર્મા*, હેરિટેજ વુડવર્ક્સ (Heritage Woodworks) થી. "
+                    f"અમે સાગવાન (Teak), શીશમ અને વોટરપ્રૂફ મરીન પ્લાયવુડમાંથી કબાટ/વોર્ડરોબ, મોડ્યુલર કિચન, સોફા સેટ, ડાઇનિંગ ટેબલ અને બારી-બારણા બનાવીએ છીએ.\n\n"
+                    f"તમારે તમારા ઘર માટે શું બનાવવું છે? 🪵"
                 )
             elif lang == "hi":
                 return (
                     f"नमस्ते {name_title}! 🙏\n\n"
-                    f"हेरिटेज वुडवर्क्स (Heritage Woodworks) में आपका स्वागत है। मैं *राजेश शर्मा* (मास्टर कारिगर)।\n\n"
-                    f"हम सागवान (Teak), शीशम और वाटरप्रूफ मरीन प्लाईवुड से हाथ से बना हुआ मजबूत फर्नीचर तैयार करते हैं:\n\n"
-                    f"• *वार्डरोब / अलमारी* (Hinged / Sliding)\n"
-                    f"• *मॉड्युलर किचन* (IS 710 BWP Marine Ply)\n"
-                    f"• *लकड़ी के सोफा सेट & डाइनिंग टेबल*\n"
-                    f"• *मेन डोर & खिड़कियां*\n\n"
-                    f"आप अपने घर के लिए क्या बनवाना चाहते हैं? 🪵✨"
+                    f"मैं *राजेश शर्मा*, हेरिटेज वुडवर्क्स (Heritage Woodworks) से। "
+                    f"हम सागवान, शीशम और वाटरप्रूफ मरीन प्लाईवुड में कस्टमाइज्ड कबाट/वार्डरोब, मॉड्युलर किचन, लकड़ी के सोफा सेट, डाइनिंग टेबल और मेन डोर-खिड़कियां बनाते हैं।\n\n"
+                    f"आप अपने घर के लिए क्या बनवाना चाहते हैं? 🪵"
                 )
             return (
                 f"Namaste {name_title}! 🙏\n\n"
-                f"Welcome to *Heritage Woodworks*. I am *Rajesh Sharma*, Master Carpenter at *Heritage Woodworks*.\n\n"
-                f"We handcraft bespoke wardrobes, modular kitchens, solid Teak/Sheesham dining tables, and architectural woodwork:\n\n"
-                f"• *Fitted Wardrobes* (Hinged / Sliding)\n"
-                f"• *Modular Kitchens* (IS 710 BWP Marine Ply)\n"
-                f"• *Solid Wood Dining Sets* (Teak / Sheesham)\n"
-                f"• *Main Doors & Windows*\n\n"
-                f"What piece are you planning to make for your home? 🪵✨"
+                f"I am *Rajesh Sharma* from *Heritage Woodworks*. "
+                f"We make custom wardrobes, modular kitchens, solid Teak/Sheesham sofas & dining sets, and architectural doors & windows.\n\n"
+                f"What piece are you planning to make for your home? 🪵"
             )
 
         # Check if customer inquiry asks about Labour, Transport, or Total All-Inclusive Turnkey Cost
@@ -1939,56 +1927,47 @@ class CarpenterAgent:
             if quote.get("type") == "cabinet_wardrobe":
                 if lang == "gu":
                     return (
-                        f"તમારી *{p_name}* ({dim_str}, {int(quote['sqft'])} ચોરસ ફૂટ) ની વિગત મળી ગઈ, {name_title}! 📏\n\n"
-                        f"• *વિકલ્પ A (1mm લેમિનેટ + જર્મન સોફ્ટ-ક્લોઝ)*: *₹{quote['total_lam']:,}* (આશરે ₹{quote['rate_lam']}/ચોરસ ફૂટ)\n"
-                        f"• *વિકલ્પ B (પ્રીમિયમ 4-કોટ PU પોલિશ)*: *₹{quote['total_pu']:,}* (આશરે ₹{quote['rate_pu']}/ચોરસ ફૂટ)\n"
-                        f"• *બનાવવાનો સમય*: *{quote['timeline']}*\n"
-                        f"• *કારીગરી*: 18mm IS 710 BWP વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
-                        f"શું તમારે લેબર અને ટ્રાન્સપોર્ટ સહિતનો વિગતવાર હિસાબ જોવો છે, કે પછી આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી માપણી વિઝિટ ગોઠવીએ? 📐🪵\n\n"
-                        f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/દીવાલના ફોટા મોકલીને પણ ફાઇનલ કરી શકો છો! 📸)*"
+                        f"માપ મળી ગયું {name_title}! {dim_str} એટલે આશરે {int(quote['sqft'])} ચોરસ ફૂટ.\n\n"
+                        f"18mm IS 710 વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ સાથે:\n"
+                        f"- 1mm એન્ટી-સ્ક્રેચ લેમિનેટમાં કુલ ખર્ચ આશરે *₹{quote['total_lam']:,}* થશે (આશરે ₹{quote['rate_lam']}/ચોરસ ફૂટ).\n"
+                        f"- પ્રીમિયમ 4-કોટ PU પોલિશમાં આશરે *₹{quote['total_pu']:,}* થશે (આશરે ₹{quote['rate_pu']}/ચોરસ ફૂટ).\n\n"
+                        f"આમાં મટિરિયલ, મજૂરી, ટ્રાન્સપોર્ટ અને સાઇટ ફિટિંગ બધું જ આવી ગયું, કોઈ વધારાનો ખર્ચ નથી. વર્કશોપમાં {quote['timeline']} લાગે છે.\n\n"
+                        f"દીવાલનું લેવલ અને સાચું માપ લેવા માટે શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* કે *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી માપણી માટે આવીએ? 📐🪵"
                     )
                 elif lang == "hi":
                     return (
-                        f"आपकी *{p_name}* ({dim_str}, {int(quote['sqft'])} स्क्वायर फीट) की जानकारी मिल गई, {name_title}! 📏\n\n"
-                        f"• *विकल्प A (1mm लैमिनेट + जर्मन सॉफ्ट-क्लोज़)*: *₹{quote['total_lam']:,}* (लगभग ₹{quote['rate_lam']}/स्क्वायर फीट)\n"
-                        f"• *विकल्प B (प्रीमियम 4-कोट PU पॉलिश)*: *₹{quote['total_pu']:,}* (लगभग ₹{quote['rate_pu']}/स्क्वायर फीट)\n"
-                        f"• *तैयार होने का समय*: *{quote['timeline']}*\n"
-                        f"• *कारीगरी*: 18mm IS 710 BWP वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स।\n\n"
-                        f"क्या आप लेबर और ट्रांसपोर्ट सहित पूरा हिसाब देखना चाहेंगे, या फिर इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* फ्री लेज़र नाप विज़िट रख लें? 📐🪵\n\n"
-                        f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे की फोटो और नाप भेजकर तुरंत ऑनलाइन फाइनल कर सकते हैं! 📸)*"
+                        f"नाप समझ आ गया {name_title}! {dim_str} यानी लगभग {int(quote['sqft'])} स्क्वायर फीट।\n\n"
+                        f"18mm IS 710 वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन सॉफ्ट-क्लोज़ फिटिंग्स के साथ:\n"
+                        f"- 1mm एंटी-स्क्रैच लैमिनेट में कुल खर्च लगभग *₹{quote['total_lam']:,}* आएगा (लगभग ₹{quote['rate_lam']}/स्क्वायर फीट)।\n"
+                        f"- प्रीमियम 4-कोट PU पॉलिश में लगभग *₹{quote['total_pu']:,}* बैठेगा (लगभग ₹{quote['rate_pu']}/स्क्वायर फीट)।\n\n"
+                        f"इसमें पूरा मटेरियल, फिटिंग्स, कुशल लेबर, डिलीवरी और ऑन-साइट फिटिंग सब शामिल है, अलग से कोई खर्च नहीं लगेगा। वर्कशॉप में {quote['timeline']} लगते हैं।\n\n"
+                        f"दीवार का सही नाप लेने के लिए क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* 15 मिनट की फ्री नाप विज़िट रख लें? 📐🪵"
                     )
                 return (
-                    f"Got your specifications for *{p_name}* ({dim_str}, {int(quote['sqft'])} sq.ft.), {name_title}! 📏\n\n"
-                    f"• *Option A (1mm Anti-Scratch Laminate + Hettich Fittings)*: *₹{quote['total_lam']:,}* (around ₹{quote['rate_lam']}/sq.ft)\n"
-                    f"• *Option B (Premium 4-Coat PU Polish)*: *₹{quote['total_pu']:,}* (around ₹{quote['rate_pu']}/sq.ft)\n"
-                    f"• *Completion Timeline*: *{quote['timeline']}*\n"
-                    f"• *Craftsmanship*: 18mm IS 710 BWP Waterproof Marine Ply with German soft-close fittings.\n\n"
-                    f"Would you like an itemized breakdown including labour & transport, or shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵\n\n"
-                    f"*(Tip: If you're busy or don't have time for a visit, you can simply send photos of your room & wall measurements here in chat for an instant online quote! 📸)*"
+                    f"Got your measurements, {name_title}! {dim_str} comes to around {int(quote['sqft'])} sq.ft.\n\n"
+                    f"In 18mm IS 710 waterproof marine ply with Hettich German soft-close fittings:\n"
+                    f"- In 1mm anti-scratch laminate, total cost comes to around *₹{quote['total_lam']:,}* net (around ₹{quote['rate_lam']}/sq.ft).\n"
+                    f"- In premium 4-coat PU polish, it comes to around *₹{quote['total_pu']:,}* net (around ₹{quote['rate_pu']}/sq.ft).\n\n"
+                    f"This is turn-key all-inclusive of raw materials, German hardware, workshop carpentry, transport, and complete site fitting with zero hidden charges. Workshop completion takes about {quote['timeline']}.\n\n"
+                    f"Shall we arrange a quick measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM* so we can check wall levels and show you finish swatches? 📐🪵"
                 )
             else:
                 price_est, timeline_est = get_price_and_timeline_estimate(session.project_type, session.dimensions, lang)
                 if lang == "gu":
                     return (
-                        f"તમારી *{p_name}* ({dim_str}) ની વિગત મળી ગઈ, {name_title}! 📏\n\n"
-                        f"• *અંદાજિત બજેટ*: {price_est}\n"
-                        f"• *બનાવવાનો સમય*: *{timeline_est}*\n"
-                        f"• *કારીગરી*: પ્રીમિયમ સીઝન્ડ લાકડું / IS 710 મરીન પ્લાય અને જર્મન સોફ્ટ-ક્લોઝ ફિટિંગ્સ.\n\n"
-                        f"સચોટ માપ લેવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી લેસર માપણી વિઝિટ રાખી શકીએ? 📐🪵"
+                        f"તમારી *{p_name}* ({dim_str}) ની વિગત મળી ગઈ, {name_title}! 🪵\n\n"
+                        f"અમારો અંદાજિત બજેટ ભાવ {price_est} છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. અમે સીઝન્ડ સાગ/શીશમ લાકડું અને હાઈ-ડેન્સિટી કુશન્સ વાપરીએ છીએ.\n\n"
+                        f"સાચું માપ લેવા માટે, શું અમે આ *શનિવારે સવારે 11:30 વાગ્યે* અથવા *રવિવારે સાંજે 4:00 વાગ્યે* ફ્રી લેસર માપણી મુલાકાત ગોઠવીએ? 📐🪵"
                     )
                 elif lang == "hi":
                     return (
-                        f"आपकी *{p_name}* ({dim_str}) की जानकारी मिल गई, {name_title}! 📏\n\n"
-                        f"• *अनुमानित बजट*: {price_est}\n"
-                        f"• *तैयार होने का समय*: *{timeline_est}*\n"
-                        f"• *कारीगरी*: प्रीमियम सीजन्ड लकड़ी / IS 710 मरीन प्लाई और जर्मन सॉफ्ट-क्लोज़ फिटिंग्स।\n\n"
-                        f"सटीक नाप लेने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* आपके घर पर फ्री लेज़र मेज़रमेंट विज़िट रख लें? 📐🪵"
+                        f"आपकी *{p_name}* ({dim_str}) की जानकारी मिल गई, {name_title}! 🪵\n\n"
+                        f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। हम सीजन्ड सागवान/शीशम लकड़ी और हाई-डेंसिटी कुशन इस्तेमाल करते हैं।\n\n"
+                        f"सटीक नाप लेने के लिए, क्या हम इस *शनिवार सुबह 11:30 बजे* या *रविवार शाम 4:00 बजे* 15 मिनट की फ्री विज़िट रख लें? 📐🪵"
                     )
                 return (
-                    f"Got your specifications for *{p_name}* ({dim_str}), {name_title}! 📏\n\n"
-                    f"• *Approximate Budget Guide*: {price_est}\n"
-                    f"• *Completion Timeline*: *{timeline_est}*\n"
-                    f"• *Craftsmanship*: Premium seasoned timber / IS 710 marine ply with soft-close German fittings.\n\n"
+                    f"Got your specifications for *{p_name}* ({dim_str}), {name_title}! 🪵\n\n"
+                    f"Our approximate Budget Guide comes to {price_est}, with a completion Timeline of {timeline_est}. We use seasoned solid timber and 40D high-density cushions with washable covers.\n\n"
                     f"To verify exact site measurements, shall we book a free 15-minute measurement visit this *Saturday at 11:30 AM* or *Sunday at 4:00 PM*? 📐🪵"
                 )
 
@@ -2056,36 +2035,30 @@ class CarpenterAgent:
             qty_match = re.search(r"\b(\d+)\s*(?:windows?|khidki|khidkhi|bari|બારી|बारी|खिड़की|खिडकी)\b", text_lower) or re.search(r"(?:make|build|need|want|chahiye|જોઈએ|બનાવવી)\s*(\d+)", text_lower)
             qty = int(qty_match.group(1)) if qty_match else 1
             if qty > 1:
-                price_en = f"• *Approximate Turnkey Budget*: ~₹18,000 – ₹22,000 per window (~₹{qty * 18000:,} – ₹{qty * 22000:,} for {qty} windows in standard 4x4 ft size)\n• *Timeline*: *10 to 14 working days*"
-                price_hi = f"• *अनुमानित टर्न-की बजट*: लगभग ₹18,000 – ₹22,000 प्रति खिड़की (मानक 4x4 फीट साइज में {qty} खिड़कियों का लगभग ₹{qty * 18000:,} – ₹{qty * 22000:,})\n• *अनुमानित समय*: *10 से 14 कार्य दिवस*"
-                price_gu = f"• *અંદાજિત ટર્ન-કી બજેટ*: આશરે ₹18,000 – ₹22,000 પ્રતિ બારી (સ્ટાન્ડર્ડ 4x4 ફૂટ સાઈઝમાં {qty} બારીઓનું આશરે ₹{qty * 18000:,} – ₹{qty * 22000:,})\n• *અંદાજિત સમય*: *10 થી 14 કામકાજના દિવસો*"
+                price_en = f"Standard 4x4 ft seasoned CP Teak (Sagwan) windows with 5mm toughened glass and SS-304 mosquito mesh come to around ₹18,000 – ₹22,000 per window, so for {qty} windows it will be around ₹{qty * 18000:,} to ₹{qty * 22000:,} turnkey with fitting."
+                price_hi = f"सीजन्ड सीपी सागवान में 5mm टफन्ड ग्लास और SS-304 मच्छर जाली पल्ले के साथ मानक 4x4 फीट की एक खिड़की लगभग ₹18,000 से ₹22,000 में तैयार होती है। {qty} खिड़कियों का फिटिंग सहित लगभग ₹{qty * 18000:,} से ₹{qty * 22000:,} का खर्च आएगा।"
+                price_gu = f"સીઝન્ડ સીપી સાગવાનમાં 5mm ટફન્ડ ગ્લાસ અને SS-304 મચ્છર જાળી શટર સાથે સ્ટાન્ડર્ડ 4x4 ફૂટની એક બારી આશરે ₹18,000 થી ₹22,000 માં બને છે. {qty} બારીઓનું ફિટિંગ સહિત આશરે ₹{qty * 18000:,} થી ₹{qty * 22000:,} જેવું થશે."
             else:
-                price_en = "• *Approximate Turnkey Budget*: ₹18,000 – ₹22,000 per standard 4x4 ft window (or ~₹1,200 – ₹1,350/sq.ft)\n• *Timeline*: *10 to 14 working days*"
-                price_hi = "• *अनुमानित टर्न-की बजट*: ₹18,000 – ₹22,000 प्रति मानक 4x4 फीट खिड़की (या लगभग ₹1,200 – ₹1,350/स्क्वायर फीट)\n• *अनुमानित समय*: *10 से 14 कार्य दिवस*"
-                price_gu = "• *અંદાજિત ટર્ન-કી બજેટ*: ₹18,000 – ₹22,000 પ્રતિ સ્ટાન્ડર્ડ 4x4 ફૂટ બારી (અથવા આશરે ₹1,200 – ₹1,350/ચોરસ ફૂટ)\n• *અંદાજિત સમય*: *10 થી 14 કામકાજના દિવસો*"
+                price_en = "Standard 4x4 ft seasoned CP Teak (Sagwan) window with 5mm toughened glass and SS-304 mosquito mesh shutter comes to around ₹18,000 – ₹22,000 turnkey with fitting (or around ₹1,200 – ₹1,350 per sq.ft)."
+                price_hi = "सीजन्ड सीपी सागवान में 5mm टफन्ड ग्लास और SS-304 मच्छर जाली पल्ले के साथ मानक 4x4 फीट की खिड़की लगभग ₹18,000 से ₹22,000 में तैयार होती है (लगभग ₹1,200 से ₹1,350 प्रति स्क्वायर फीट)।"
+                price_gu = "સીઝન્ડ સીપી સાગવાનમાં 5mm ટફન્ડ ગ્લાસ અને SS-304 મચ્છર જાળી શટર સાથે સ્ટાન્ડર્ડ 4x4 ફૂટની બારી આશરે ₹18,000 થી ₹22,000 માં તૈયાર થાય છે (આશરે ₹1,200 થી ₹1,350 પ્રતિ ચોરસ ફૂટ)."
 
             if lang == "gu":
                 return (
-                    f"નમસ્તે {name_title}! 🙏 કસ્ટમ વુડન વિન્ડોઝ (Wooden Windows) માટે ખૂબ સરસ!\n\n"
-                    f"{price_gu}\n"
-                    f"• *કારીગરી*: સીઝન્ડ સીપી સાગવાન (CP Teak) માં વેધરપ્રૂફ ચોખટ, 5mm ટફન્ડ ગ્લાસ અને SS-304 મચ્છર જાળી શટર સહિત.\n\n"
-                    f"તમારી બારીઓનું અંદાજિત માપ શું છે (જેમ કે 4x4 ફૂટ કે 5x4 ફૂટ)? 📐\n"
-                    f"*(જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે જગ્યાનો ફોટો પણ શેર કરી શકો છો! 📸)*"
+                    f"નમસ્તે {name_title}! 🙏 બારીઓ બિલકુલ બની જશે.\n\n"
+                    f"{price_gu}\n\n"
+                    f"કારીગરીમાં 10 થી 14 દિવસ લાગે છે. તમારી બારીઓનું અંદાજિત માપ શું છે (જેમ કે 4x4 ફૂટ કે 5x4 ફૂટ)? 📐"
                 )
             elif lang == "hi":
                 return (
-                    f"नमस्ते {name_title}! 🙏 कस्टम वुडन विंडो (Wooden Windows) के लिए बहुत बढ़िया!\n\n"
-                    f"{price_hi}\n"
-                    f"• *कारीगरी*: सीजन्ड सीपी सागवान (CP Teak) में वेदरप्रूफ चौखट, 5mm टफन्ड ग्लास और SS-304 मच्छर जाली पल्ले सहित।\n\n"
-                    f"आपकी खिड़कियों का अंदाज़न साइज़ क्या है (जैसे 4x4 फीट या 5x4 फीट)? 📐\n"
-                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप जगह की फोटो भी शेयर कर सकते हैं! 📸)*"
+                    f"नमस्ते {name_title}! 🙏 खिड़कियां बिल्कुल बन जाएंगी।\n\n"
+                    f"{price_hi}\n\n"
+                    f"वर्कशॉप में 10 से 14 दिन लगते हैं। आपकी खिड़कियों का अंदाज़न साइज़ क्या है (जैसे 4x4 फीट या 5x4 फीट)? 📐"
                 )
             return (
-                f"Namaste {name_title}! 🙏 Great to hear regarding your custom wooden windows!\n\n"
-                f"{price_en}\n"
-                f"• *Craftsmanship*: Seasoned CP Teak (Sagwan) frame & sashes with 5mm toughened glass and SS-304 insect mesh shutters.\n\n"
-                f"What are the approximate dimensions of your windows (e.g., 4x4 ft or 5x4 ft)? 📐\n"
-                f"*(Tip: You can also share a photo of your window spaces right here for an instant quote! 📸)*"
+                f"Namaste {name_title}! 🙏 Yes, we make custom wooden windows.\n\n"
+                f"{price_en}\n\n"
+                f"It takes around 10 to 14 working days in our workshop. What are the approximate dimensions of your windows (e.g., 4x4 ft or 5x4 ft)? 📐"
             )
 
         # 7. Customer mentioned what they want to make (without dimensions yet) -> Budget range, Timeline, Ask for Size
@@ -2094,7 +2067,7 @@ class CarpenterAgent:
             p_lower = p_name.lower()
             price_est, timeline_est = get_price_and_timeline_estimate(p_name, None, lang)
 
-            # Item-specific questions (never ask seating size for cabinets or wardrobes!)
+            # Item-specific questions
             if any(k in p_lower for k in ["sofa", "couch", "સોફા", "सोफा"]):
                 ask_q_en = "What seating size are you planning (e.g., 3-seater, 5-seater 3+1+1, or L-shape sectional)? 🪵"
                 ask_q_hi = "आप कितने सीटर का सोफा बनवाना चाहते हैं (जैसे 3-सीटर, 5-सीटर 3+1+1, या L-शेप)? 🪵"
@@ -2116,7 +2089,6 @@ class CarpenterAgent:
                 ask_q_hi = "मंदिर के लिए अंदाज़न कितनी ऊंचाई और चौड़ाई की जगह है? 🪔"
                 ask_q_gu = "મંદિર માટે તમારી પાસે અંદાજિત કેટલી ઊંચાઈ અને પહોળાઈની જગ્યા છે? 🪔"
             else:
-                # Storage Cabinet, Wardrobe, Kitchen, TV Unit, Bookshelf, etc.
                 ask_q_en = "What is the approximate size of your wall or space (for example, 6x4 ft or 8x6 ft)? 📐"
                 ask_q_hi = "कमरे या दीवार का अंदाज़न साइज़ क्या है (जैसे 6x4 फीट या 8x6 फीट)? 📐"
                 ask_q_gu = "તમારી દીવાલ અથવા જગ્યાનું અંદાજિત માપ શું છે (જેમ કે 6x4 ફૂટ કે 8x6 ફૂટ)? 📐"
@@ -2124,37 +2096,32 @@ class CarpenterAgent:
             if lang == "gu":
                 name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"અમે તમારી *{p_name}* ઉત્તમ કારીગરીથી બનાવી આપીશું{name_suffix}! 🪵\n\n"
-                    f"• *અંદાજિત બજેટ માર્ગદર્શિકા*: {price_est}\n"
-                    f"• *અંદાજિત સમય*: *{timeline_est}*\n\n"
-                    f"{ask_q_gu}\n\n"
-                    f"*(ખાસ: જો રૂબરૂ મળવાનો સમય ન હોય, તો તમે અહીં ચેટમાં રૂમ/જગ્યાનો ફોટો મોકલીને પણ તુરંત ઓનલાઈન ક્વોટ મેળવી શકો છો! 📸)*"
+                    f"નમસ્તે{name_suffix}! તમારી *{p_name}* બિલકુલ બનાવી આપીશું. 🪵\n\n"
+                    f"અમારો અંદાજિત ભાવ {price_est} ની આસપાસ રહે છે, અને વર્કશોપમાં {timeline_est} માં તૈયાર થઈ જાય છે. અમે 18mm IS 710 વોટરપ્રૂફ મરીન પ્લાય અને હેટીચ જર્મન ફિટિંગ્સ વાપરીએ છીએ.\n\n"
+                    f"{ask_q_gu}"
                 )
             elif lang == "hi":
                 name_suffix = f", {name_title}" if first_name else ""
                 return (
-                    f"हम आपकी *{p_name}* बहुत बढ़िया कारीगरी से बनाएंगे{name_suffix}! 🪵\n\n"
-                    f"• *अनुमानित बजट गाइड*: {price_est}\n"
-                    f"• *अनुमानित समय*: *{timeline_est}*\n\n"
-                    f"{ask_q_hi}\n\n"
-                    f"*(सुझाव: अगर विज़िट का समय न हो, तो आप यहीं चैट पर कमरे/जगह की फोटो भेजकर तुरंत ऑनलाइन एस्टिमेट ले सकते हैं! 📸)*"
+                    f"नमस्ते{name_suffix}! आपकी *{p_name}* बिल्कुल बना देंगे। 🪵\n\n"
+                    f"हमारा अंदाज़न बजट {price_est} आता है, और वर्कशॉप में {timeline_est} में तैयार हो जाता है। हम 18mm IS 710 वाटरप्रूफ मरीन प्लाई और हेटिच जर्मन फिटिंग्स इस्तेमाल करते हैं।\n\n"
+                    f"{ask_q_hi}"
                 )
             name_suffix = f", {first_name} ji" if first_name else " ji"
             return (
-                f"We would love to handcraft your *{p_name}*{name_suffix}! 🪵\n\n"
-                f"• *Approximate Budget Range*: {price_est}\n"
-                f"• *Estimated Timeline*: *{timeline_est}*\n\n"
-                f"{ask_q_en}\n\n"
-                f"*(Tip: If you don't have time for a visit, you can also share photos of your space right here in chat for an instant online quote! 📸)*"
+                f"Namaste{name_suffix}! We can certainly make your *{p_name}*. 🪵\n\n"
+                f"Our approximate budget comes to around {price_est}, and it takes about {timeline_est}. We use 18mm IS 710 waterproof marine ply with Hettich German soft-close fittings.\n\n"
+                f"{ask_q_en}"
             )
+
         # 8. Material inquiry
         if any(w in text_lower for w in ["teak", "sheesham", "ply", "laminate", "material", "wood", "difference", "લાકડું", "સાગવાન", "લાકડા", "लकड़ी", "सागवान"]):
             if lang == "gu":
                 name_suffix = f", {name_title}" if first_name else ""
                 return (
                     f"ઉત્તમ સવાલ{name_suffix}! સાચું લાકડું પસંદ કરવું એ જ સારા ફર્નિચરનું રહસ્ય છે:\n\n"
-                    f"• *સાગવાન (Teak)*: કુદરતી તેલ વાળું લાકડું, 100% ઊધઈ-પ્રૂફ, આજીવન ચાલતા ફર્નિચર અને દરવાજા માટે શ્રેષ્ઠ.\n"
-                    f"• *શીશમ (Rosewood)*: વજનદાર, મજબૂત અને ડ્યુઅલ-ટોન કુદરતી રેસા વાળું. ડાઇનિંગ ટેબલ અને સોફા માટે શ્રેષ્ઠ.\n"
+                    f"- *સાગવાન (Teak)*: કુદરતી તેલ વાળું લાકડું, 100% ઊધઈ-પ્રૂફ, આજીવન ચાલતા ફર્નિચર અને દરવાજા માટે શ્રેષ્ઠ.\n"
+                    f"- *શીશમ (Rosewood)*: વજનદાર, મજબૂત અને ડ્યુઅલ-ટોન કુદરતી રેસા વાળું. ડાઇનિંગ ટેબલ અને સોફા માટે શ્રેષ્ઠ.\n"
                     f"• *IS 710 BWP મરીન પ્લાય*: વોટરપ્રૂફ, કિચન અને કબાટ માટે શ્રેષ્ઠ, 1mm મેટ/એક્રેલિક ફિનિશ સાથે.\n\n"
                     f"તમે કેવો લૂક પસંદ કરો છો — કુદરતી લાકડાનો કે મોર્ડન મેટ કલર? 🪵"
                 )
@@ -2162,17 +2129,17 @@ class CarpenterAgent:
                 name_suffix = f", {name_title}" if first_name else ""
                 return (
                     f"बहुत अच्छा सवाल{name_suffix}! सही लकड़ी चुनना ही मजबूत फर्नीचर का राज़ है:\n\n"
-                    f"• *सागवान (Teak)*: प्राकृतिक तेल से भरपूर, 100% दीमक-रोधी, हमेशा चलने वाले फर्नीचर और दरवाजों के लिए सर्वश्रेष्ठ।\n"
-                    f"• *शीशम (Rosewood)*: भारी, मजबूत और शानदार प्राकृतिक रेशों वाला। डाइनिंग और सोफा के लिए उत्तम।\n"
+                    f"- *सागवान (Teak)*: प्राकृतिक तेल से भरपूर, 100% दीमक-रोधी, हमेशा चलने वाले फर्नीचर और दरवाजों के लिए सर्वश्रेष्ठ।\n"
+                    f"- *शीशम (Rosewood)*: भारी, मजबूत और शानदार प्राकृतिक रेशों वाला। डाइनिंग और सोफा के लिए उत्तम।\n"
                     f"• *IS 710 BWP मरीन प्लाई*: वाटरप्रूफ, किचन और वार्डरोब के लिए बेस्ट, 1mm मैट/PU फिनिश के साथ।\n\n"
                     f"आप किस तरह का फिनिश पसंद करेंगे — नेचुरल वुड ग्रेन या मॉडर्न मैट? 🪵"
                 )
             name_suffix = f", {first_name}" if first_name else ""
             return (
                 f"Excellent question{name_suffix}! Choosing the right timber is 80% of fine woodworking:\n\n"
-                f"• *Teak (Sagwan)*: High natural oil content, 100% termite proof, ideal for lifetime pieces and doors.\n"
-                f"• *Sheesham*: Hard, dense, with striking dual-tone grain. Perfect for dining sets & sturdy beds.\n"
-                f"• *IS 710 BWP Marine Ply*: Waterproof, best for kitchens & wardrobes, paired with *1mm Matte/PU finish*.\n\n"
+                f"- *Teak (Sagwan)*: High natural oil content, 100% termite proof, ideal for lifetime pieces and doors.\n"
+                f"- *Sheesham*: Hard, dense, with striking dual-tone grain. Perfect for dining sets & sturdy beds.\n"
+                f"- *IS 710 BWP Marine Ply*: Waterproof, best for kitchens & wardrobes, paired with *1mm Matte/PU finish*.\n\n"
                 f"Do you have a specific finish in mind, like warm natural grains or modern matte solid colors? 🪵"
             )
 
