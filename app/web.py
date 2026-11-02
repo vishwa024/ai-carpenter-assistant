@@ -28,6 +28,9 @@ from app.crm import crm
 from app.database import db
 from app.pricing import pricing_engine
 from app.state_machine import state_machine
+from app.appointments import appointment_engine
+from app.growth import growth_engine
+from app.flows import FurnitureFlowRegistry
 from app.whatsapp import whatsapp_channel, WHATSAPP_WEB_URL
 
 # Ensure UTF-8 output on Windows consoles to prevent cp1252 charmap encoding errors
@@ -344,6 +347,23 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True, "items": items, "count": len(items)})
             return
 
+        elif path == "/api/appointments":
+            status = query_params.get("status", [""])[0] or None
+            limit = int(query_params.get("limit", [100])[0])
+            apts = appointment_engine.list_appointments(status=status, limit=limit)
+            self._send_json(200, {"ok": True, "appointments": apts, "count": len(apts)})
+            return
+
+        elif path == "/api/growth/metrics":
+            metrics = growth_engine.get_business_growth_metrics()
+            self._send_json(200, {"ok": True, "metrics": metrics})
+            return
+
+        elif path == "/api/growth/follow_ups":
+            pending = growth_engine.evaluate_pending_follow_ups()
+            self._send_json(200, {"ok": True, "pending": pending, "count": len(pending)})
+            return
+
         elif path == "/api/quotations":
             phone = query_params.get("phone", [""])[0] or None
             status = query_params.get("status", [""])[0] or None
@@ -547,6 +567,88 @@ class CarpenterRequestHandler(http.server.BaseHTTPRequestHandler):
                 "latency_ms": agent_result["latency_ms"],
                 "session": agent_result["session"],
             })
+            return
+
+        # Phase 2: Appointments API
+        if path == "/api/appointments/book":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            phone = str(payload.get("phone", "")).strip()
+            slot = str(payload.get("slot_time") or "Saturday at 11:30 AM").strip()
+            address = str(payload.get("address", "")).strip() or None
+            scope = str(payload.get("project_scope", "")).strip() or None
+            if not phone:
+                self._send_json(400, {"ok": False, "error": "phone is required"})
+                return
+
+            crm.get_or_create_customer(phone)
+            apt = appointment_engine.create_or_request_visit(
+                phone=phone,
+                slot_time=slot,
+                address=address,
+                project_scope=scope,
+            )
+            audit_logs.log("APPOINTMENT_BOOKED", f"Booked site visit for {phone} at {slot}")
+            self._send_json(200, {"ok": True, "appointment": apt})
+            return
+
+        elif path == "/api/appointments/reschedule":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            phone = str(payload.get("phone", "")).strip()
+            new_slot = str(payload.get("new_slot", "")).strip()
+            if not phone or not new_slot:
+                self._send_json(400, {"ok": False, "error": "phone and new_slot are required"})
+                return
+
+            ok = appointment_engine.reschedule_visit(phone, new_slot)
+            audit_logs.log("APPOINTMENT_RESCHEDULED", f"Rescheduled {phone} to {new_slot}")
+            self._send_json(200, {"ok": ok, "message": "Rescheduled" if ok else "Appointment not found"})
+            return
+
+        elif path == "/api/appointments/cancel":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            phone = str(payload.get("phone", "")).strip()
+            reason = str(payload.get("reason", "")).strip()
+            if not phone:
+                self._send_json(400, {"ok": False, "error": "phone is required"})
+                return
+
+            ok = appointment_engine.cancel_visit(phone, reason=reason)
+            audit_logs.log("APPOINTMENT_CANCELLED", f"Cancelled appointment for {phone}: {reason}")
+            self._send_json(200, {"ok": ok, "message": "Cancelled" if ok else "Appointment not found"})
+            return
+
+        elif path == "/api/growth/send_follow_up":
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except Exception as e:
+                self._send_json(400, {"ok": False, "error": f"JSON parse error: {e}"})
+                return
+
+            phone = str(payload.get("phone", "")).strip()
+            if not phone:
+                self._send_json(400, {"ok": False, "error": "phone is required"})
+                return
+
+            msg_info = growth_engine.generate_follow_up_message(phone)
+            reply_text = msg_info["text"]
+            dispatch_res = whatsapp_channel.send_message(phone, reply_text)
+            audit_logs.log("FOLLOW_UP_SENT", f"Sent growth follow-up nurture message to {phone}")
+            self._send_json(200, {"ok": True, "dispatched": True, "text": reply_text, "dispatch": dispatch_res})
             return
 
         # 3. Admin Quotation Approval Endpoint

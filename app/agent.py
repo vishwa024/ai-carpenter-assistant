@@ -18,6 +18,8 @@ from app.config import config
 from app.crm import crm, detect_ahmedabad_locality
 from app.pricing import pricing_engine
 from app.state_machine import state_machine, ConversationStage
+from app.appointments import appointment_engine
+from app.flows import FurnitureFlowRegistry
 
 logger = logging.getLogger("carpenter.agent")
 
@@ -2402,6 +2404,19 @@ class CarpenterAgent:
                     consultation_mode=session.consultation_mode,
                     budget=session.customer_budget,
                 )
+
+                # Persist appointment if requested or confirmed
+                if session.appointment_status in ("requested", "confirmed"):
+                    addr = None
+                    for n in session.notes:
+                        if n.startswith("address:"):
+                            addr = n[8:].strip()
+                    appointment_engine.create_or_request_visit(
+                        phone=session.phone_number,
+                        slot_time=session.appointment_slot or "Saturday at 11:30 AM",
+                        address=addr or session.site_address,
+                        project_scope=session.project_type,
+                    )
             except Exception as err:
                 logger.error(f"Error syncing CRM persistence: {err}")
 
